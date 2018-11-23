@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.dds.webrtc">
+
+    <application>
+        <activity
+            android:name=".SingleChatActivity"
+            android:configChanges="orientation|screenSize"
+            android:screenOrientation="fullUser"
+            android:theme="@style/CallActivityTheme" />
+        <activity
+            android:name=".ChatRoomActivity"
+            android:configChanges="orientation|screenSize"
+            android:screenOrientation="fullUser"
+            android:theme="@style/CallActivityTheme" />
+    </application>
+
+</manifest>
