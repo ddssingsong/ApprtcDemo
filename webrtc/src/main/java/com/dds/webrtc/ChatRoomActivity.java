@@ -10,15 +10,28 @@ import android.widget.LinearLayout;
 import com.dds.webrtc.callback.AppPeerConnectionEvents;
 import com.dds.webrtc.callback.AppSignalingEvents;
 import com.dds.webrtc.callback.ProxyRenderer;
-import com.dds.webrtc.client.WebPeerConnManager;
+import com.dds.webrtc.client.WebPeerClient;
 import com.dds.webrtc.signal.SignalClient;
 
+import org.webrtc.AudioSource;
+import org.webrtc.AudioTrack;
+import org.webrtc.Camera1Enumerator;
+import org.webrtc.Camera2Enumerator;
+import org.webrtc.CameraEnumerator;
 import org.webrtc.EglBase;
 import org.webrtc.IceCandidate;
+import org.webrtc.Logging;
+import org.webrtc.MediaConstraints;
+import org.webrtc.MediaStream;
+import org.webrtc.PeerConnectionFactory;
 import org.webrtc.RendererCommon;
 import org.webrtc.SessionDescription;
 import org.webrtc.StatsReport;
 import org.webrtc.SurfaceViewRenderer;
+import org.webrtc.VideoCapturer;
+import org.webrtc.VideoRenderer;
+import org.webrtc.VideoSource;
+import org.webrtc.VideoTrack;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -34,11 +47,8 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
     private SignalClient signalClient;
     private LinearLayout render_content;
     private SurfaceViewRenderer render_local;
-
     private ProxyRenderer localRender;
-    private List<ProxyRenderer> remoteRenders = new LinkedList<>();
-
-    private WebPeerConnManager peerClients;
+    private WebPeerClient peerClients;
 
     private String host;
     private String roomId;
@@ -86,7 +96,7 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
         localRender = new ProxyRenderer();
         localRender.setTarget(render_local);
 
-        peerClients = new WebPeerConnManager();
+        peerClients = new WebPeerClient();
         peerClients.initPeerConnectionFactory(this, this);
 
     }
@@ -127,7 +137,7 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
                         if (otherId.equals(clientId)) continue;
                         // 创建连接
                         ProxyRenderer renderer = getSurfaceRender(remoteCount);
-                        WebPeerConnManager peerConnectionClient = WebPeerConnManager.getInstance();
+                        WebPeerClient peerConnectionClient = WebPeerClient.getInstance();
                         peerConnectionClient.createPeerConnection(rootEglBase.getEglBaseContext(),
                                 localRender, renderer, initiator, otherId, null);
                         remoteCount++;
@@ -173,14 +183,14 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
                     Log.e("dds_test", "有人进来了");
                     // 发起者收到了offer 需要创建peerConnection，并回复answer
                     ProxyRenderer renderer = getSurfaceRender(remoteCount);
-                    WebPeerConnManager peerConnectionClient = WebPeerConnManager.getInstance();
+                    WebPeerClient peerConnectionClient = WebPeerClient.getInstance();
                     peerConnectionClient.createPeerConnection(rootEglBase.getEglBaseContext(),
                             localRender, renderer, initiator, remoteId, sdp);
                     peerClients.add(peerConnectionClient);
                     remoteCount++;
                 } else {
                     //收到了answer 需要setRemoteDescription
-                    for (WebPeerConnManager webPeerClient : peerClients) {
+                    for (WebPeerClient webPeerClient : peerClients) {
                         if (webPeerClient.getRemoteUserId().equals(remoteId)) {
                             webPeerClient.setRemoteDescription(sdp);
                         }
@@ -198,7 +208,7 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                for (WebPeerConnManager webPeerClient : peerClients) {
+                for (WebPeerClient webPeerClient : peerClients) {
                     if (webPeerClient.getRemoteUserId().equals(remoteUserId)) {
                         webPeerClient.addRemoteIceCandidate(candidate);
                     }
@@ -214,7 +224,7 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                for (WebPeerConnManager webPeerClient : peerClients) {
+                for (WebPeerClient webPeerClient : peerClients) {
                     if (webPeerClient.getRemoteUserId().equals(remoteUserId)) {
                         webPeerClient.removeRemoteIceCandidates(candidates);
                     }

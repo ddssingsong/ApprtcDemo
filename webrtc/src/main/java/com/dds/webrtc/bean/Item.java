@@ -1,6 +1,6 @@
 package com.dds.webrtc.bean;
 
-import com.dds.webrtc.client.WebPeerConnManager;
+import com.dds.webrtc.client.WebPeerClient;
 
 import org.webrtc.IceCandidate;
 import org.webrtc.SessionDescription;
@@ -16,5 +16,5 @@ public class Item {
     public boolean initiator;
     public SessionDescription sdp;
     public IceCandidate candidate;
-    public WebPeerConnManager peerClient;
+    public WebPeerClient peerClient;
 }

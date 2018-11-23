@@ -37,7 +37,7 @@ public class PeerConn {
     private MediaConstraints sdpMediaConstraints;
     private PCObserver pcObserver = new PCObserver();
     private SDPObserver sdpObserver = new SDPObserver();
-    boolean isInitiator;
+    private boolean isInitiator;
 
     public PeerConn(String remoteUserId, AppPeerConnectionEvents events) {
         this.events = events;
@@ -64,7 +64,10 @@ public class PeerConn {
         peerConnection = factory.createPeerConnection(rtcConfig, pcConstraints, pcObserver);
 
         peerConnection.addStream(mediaStream);
+
+
     }
+
 
     private void createMediaConstraintsInternal() {
         pcConstraints = new MediaConstraints();
@@ -77,58 +80,52 @@ public class PeerConn {
 
     }
 
-    public void createOffer(SessionDescription sdp) {
+    public void setRemoteSdp(SessionDescription sdp) {
+        String sdpDescription = sdp.description;
+        sdpDescription = preferCodec(sdpDescription, "VP8", false);
+        SessionDescription sdpRemote = new SessionDescription(sdp.type, sdpDescription);
+        peerConnection.setRemoteDescription(sdpObserver, sdpRemote);
+    }
+
+    public void createOffer() {
         if (peerConnection != null) {
             peerConnection.createOffer(sdpObserver, sdpMediaConstraints);
         }
 
     }
 
-    public void createAnswer(SessionDescription sdp) {
-
+    public void createAnswer() {
+        if (peerConnection != null) {
+            peerConnection.createOffer(sdpObserver, sdpMediaConstraints);
+        }
     }
 
     public void setRemoteDescription(final SessionDescription sdp) {
-        executor.execute(new Runnable() {
-            @Override
-            public void run() {
-                if (peerConnection == null) {
-                    return;
-                }
-                String sdpDescription = sdp.description;
-                sdpDescription = preferCodec(sdpDescription, "VP8", false);
-                SessionDescription sdpRemote = new SessionDescription(sdp.type, sdpDescription);
-                peerConnection.setRemoteDescription(sdpObserver, sdpRemote);
-            }
-        });
+        if (peerConnection == null) {
+            return;
+        }
+        String sdpDescription = sdp.description;
+        sdpDescription = preferCodec(sdpDescription, "VP8", false);
+        SessionDescription sdpRemote = new SessionDescription(sdp.type, sdpDescription);
+        peerConnection.setRemoteDescription(sdpObserver, sdpRemote);
     }
 
     public void addRemoteIceCandidate(final IceCandidate candidate) {
-        executor.execute(new Runnable() {
-            @Override
-            public void run() {
-                if (peerConnection != null) {
-                    if (queuedRemoteCandidates != null) {
-                        queuedRemoteCandidates.add(candidate);
-                    } else {
-                        peerConnection.addIceCandidate(candidate);
-                    }
-                }
+        if (peerConnection != null) {
+            if (queuedRemoteCandidates != null) {
+                queuedRemoteCandidates.add(candidate);
+            } else {
+                peerConnection.addIceCandidate(candidate);
             }
-        });
+        }
     }
 
     public void removeRemoteIceCandidates(final IceCandidate[] candidates) {
-        executor.execute(new Runnable() {
-            @Override
-            public void run() {
-                if (peerConnection == null) {
-                    return;
-                }
-                drainCandidates();
-                peerConnection.removeIceCandidates(candidates);
-            }
-        });
+        if (peerConnection == null) {
+            return;
+        }
+        drainCandidates();
+        peerConnection.removeIceCandidates(candidates);
     }
 
 

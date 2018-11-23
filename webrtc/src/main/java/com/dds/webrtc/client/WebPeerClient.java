@@ -10,6 +10,7 @@ import org.webrtc.Camera1Enumerator;
 import org.webrtc.Camera2Enumerator;
 import org.webrtc.CameraEnumerator;
 import org.webrtc.EglBase;
+import org.webrtc.IceCandidate;
 import org.webrtc.Logging;
 import org.webrtc.MediaConstraints;
 import org.webrtc.MediaStream;
@@ -21,8 +22,10 @@ import org.webrtc.VideoRenderer;
 import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -30,26 +33,24 @@ import java.util.concurrent.Executors;
  * Created by dds on 2018/11/7.
  * android_shuai@163.com
  */
-public class WebPeerConnManager {
+public class WebPeerClient {
     private static final String TAG = "dds_WebPeerClient";
-    private static final WebPeerConnManager instance = new WebPeerConnManager();
+    private static final WebPeerClient instance = new WebPeerClient();
     private final ExecutorService executor;
     private PeerConnectionFactory factory;
     private MediaStream mediaStream;
     public List<PeerConnection.IceServer> iceServers;
 
 
-    private VideoRenderer.Callbacks remoteRender;
     VideoRenderer.Callbacks localRender;
     private VideoCapturer videoCapturer;
-    private boolean isInitiator;
     private AppPeerConnectionEvents events;
 
-    public static WebPeerConnManager getInstance() {
+    public static WebPeerClient getInstance() {
         return instance;
     }
 
-    public WebPeerConnManager() {
+    public WebPeerClient() {
         //初始化转发和穿透服务器
         iceServers = new LinkedList<>();
         iceServers.add(new PeerConnection.IceServer("stun:47.254.34.146:3478"));
@@ -87,13 +88,36 @@ public class WebPeerConnManager {
         this.localRender = localRender;
         this.remoteRender = remoteRender;
         this.isInitiator = isInitiator;
-        // 允许视频加速
-        factory.setVideoHwAccelerationOptions(eglBaseContext, eglBaseContext);
-
         executor.execute(new Runnable() {
             @Override
             public void run() {
 
+            }
+        });
+    }
+
+
+    public void setRemoteDescription(final SessionDescription sdp) {
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+
+            }
+        });
+    }
+
+    public void addRemoteIceCandidate(final IceCandidate candidate) {
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+            }
+        });
+    }
+
+    public void removeRemoteIceCandidates(final IceCandidate[] candidates) {
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
 
             }
         });
@@ -101,6 +125,7 @@ public class WebPeerConnManager {
 
 
     //============================================================================================
+
     private VideoCapturer createVideoCapture(Context context) {
         VideoCapturer videoCapturer;
         if (useCamera2(context)) {
