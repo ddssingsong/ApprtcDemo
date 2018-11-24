@@ -6,6 +6,7 @@ import android.util.Log;
 
 import com.dds.webrtc.bean.SignalingParameters;
 import com.dds.webrtc.callback.AppSignalingEvents;
+import com.dds.webrtc.room.AsyncHttpURLConnection;
 import com.dds.webrtc.room.RoomParametersFetcher;
 
 import org.json.JSONArray;
@@ -33,10 +34,13 @@ public class SignalClient {
     private WebSocketObserver wsObserver;
     private String roomID;
     private static final String ROOM_JOIN = "join";
+    private static final String ROOM_LEAVE = "leave";
     private String clientId;
     private List<String> clients;
     private boolean initiator;
 
+    private String host;
+    private String roomId;
 
     private final Handler handler;
 
@@ -49,6 +53,8 @@ public class SignalClient {
 
     //连接房间服务器
     public void connectRoom(String host, final String roomId) {
+        this.host = host;
+        this.roomID = roomId;
         //创建房间并获取房间服务器信息
         RoomParametersFetcher fetcher = new RoomParametersFetcher(host + "/" + ROOM_JOIN + "/" + roomId, null, new RoomParametersFetcher.RoomParametersFetcherEvents() {
             @Override
@@ -173,6 +179,34 @@ public class SignalClient {
         });
     }
 
+    public void sendBye(final String clientId) {
+        AsyncHttpURLConnection httpConnection =
+                new AsyncHttpURLConnection("POST", host + "/" + ROOM_LEAVE + "/" + roomId + "/" + clientId, null, new AsyncHttpURLConnection.AsyncHttpEvents() {
+                    @Override
+                    public void onHttpError(String errorMessage) {
+                    }
+
+                    @Override
+                    public void onHttpComplete(String response) {
+                        Log.e("dds", response);
+
+                    }
+                });
+        httpConnection.send();
+
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+
+
+                JSONObject json = new JSONObject();
+                jsonPut(json, "type", "bye");
+                jsonPut(json, "fromId", clientId);
+                send(json.toString()); //sendBye
+            }
+        });
+    }
+
 
     private class WebSocketObserver implements WebSocket.WebSocketConnectionObserver {
 
@@ -233,7 +267,8 @@ public class SignalClient {
                         events.onRemoteDescription(sdp, remoteUserId, clientId, true);
 
                     } else if (type.equals("bye")) {
-
+                        String remoteUserId = json.getString("fromId");
+                        events.onRemoteDisconnect(remoteUserId);
                     }
                 }
             } catch (JSONException e) {
@@ -258,7 +293,7 @@ public class SignalClient {
             json.put("cmd", "send");
             json.put("msg", message);
             message = json.toString();
-            Log.d(TAG, "C->WSS: " + message);
+            Log.d("dds_test", "C->WSS: " + message);
             ws.sendTextMessage(message);
         } catch (JSONException e) {
             Log.e(TAG, e.toString());

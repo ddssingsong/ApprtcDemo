@@ -21,6 +21,8 @@ import org.webrtc.VideoCapturer;
 import org.webrtc.VideoRenderer;
 import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
+import org.webrtc.voiceengine.WebRtcAudioManager;
+import org.webrtc.voiceengine.WebRtcAudioUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -99,6 +101,13 @@ public class PeerConnectionClient {
             public void run() {
                 try {
                     PeerConnectionFactory.initializeInternalTracer();
+                    //设置传送数据的编码
+                    PeerConnectionFactory.initializeFieldTrials("WebRTC-IntelVP8/Enabled/");
+                    //如果设备支持opensl Es 如果设置true则只是用AudioTracle 不使用opensles
+                    WebRtcAudioManager.setBlacklistDeviceForOpenSLESUsage(true);
+                    //                //允许自动曝光控制
+                    WebRtcAudioUtils.setWebRtcBasedAcousticEchoCanceler(false);
+                    WebRtcAudioUtils.setWebRtcBasedNoiseSuppressor(false);
                     PeerConnectionFactory.initializeAndroidGlobals(mContext, true,true,true);
                     PeerConnectionFactory.Options options = new PeerConnectionFactory.Options();
                     options.networkIgnoreMask = 0;

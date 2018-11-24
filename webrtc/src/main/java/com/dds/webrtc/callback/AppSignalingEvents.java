@@ -19,6 +19,8 @@ public interface AppSignalingEvents {
 
     void onRemoteIceCandidatesRemoved(final IceCandidate[] candidates, String userId, String remoteUserId);
 
+    void onRemoteDisconnect(String remoteId);
+
     void onChannelClose();
 
     void onChannelError(final String description);

@@ -1,7 +1,11 @@
 package com.dds.webrtc.client;
 
-import com.dds.webrtc.callback.AppPeerConnectionEvents;
+import android.util.Log;
 
+import com.dds.webrtc.callback.AppPeerConnectionEvents;
+import com.dds.webrtc.callback.ProxyRenderer;
+
+import org.webrtc.AudioTrack;
 import org.webrtc.DataChannel;
 import org.webrtc.IceCandidate;
 import org.webrtc.MediaConstraints;
@@ -38,6 +42,7 @@ public class PeerConn {
     private PCObserver pcObserver = new PCObserver();
     private SDPObserver sdpObserver = new SDPObserver();
     private boolean isInitiator;
+    private MediaStream mediaStream;
 
     public PeerConn(String remoteUserId, AppPeerConnectionEvents events) {
         this.events = events;
@@ -46,8 +51,13 @@ public class PeerConn {
 
     }
 
+    public String getRemoteId() {
+        return remoteUserId;
+
+    }
+
     public void createPeerConnection(List<PeerConnection.IceServer> iceServers, PeerConnectionFactory factory,
-                                     MediaStream mediaStream, VideoRenderer.Callbacks remoteRender, boolean isInitiator) {
+                                     ProxyRenderer remoteRender, AudioTrack audioTrack, VideoTrack videoTrack, boolean isInitiator) {
 
         this.remoteRender = remoteRender;
         this.isInitiator = isInitiator;
@@ -62,9 +72,16 @@ public class PeerConn {
         rtcConfig.keyType = PeerConnection.KeyType.ECDSA;
 
         peerConnection = factory.createPeerConnection(rtcConfig, pcConstraints, pcObserver);
+        mediaStream = factory.createLocalMediaStream("ARDAMS");
+        //设置视频
+
+        mediaStream.addTrack(audioTrack);
+        // 设置音频
+        mediaStream.addTrack(videoTrack);
+
 
         peerConnection.addStream(mediaStream);
-
+        Log.e("dds_test", "createPeerConnection");
 
     }
 
@@ -80,15 +97,9 @@ public class PeerConn {
 
     }
 
-    public void setRemoteSdp(SessionDescription sdp) {
-        String sdpDescription = sdp.description;
-        sdpDescription = preferCodec(sdpDescription, "VP8", false);
-        SessionDescription sdpRemote = new SessionDescription(sdp.type, sdpDescription);
-        peerConnection.setRemoteDescription(sdpObserver, sdpRemote);
-    }
-
     public void createOffer() {
         if (peerConnection != null) {
+            Log.e("dds_test", "createOffer...");
             peerConnection.createOffer(sdpObserver, sdpMediaConstraints);
         }
 
@@ -96,7 +107,8 @@ public class PeerConn {
 
     public void createAnswer() {
         if (peerConnection != null) {
-            peerConnection.createOffer(sdpObserver, sdpMediaConstraints);
+            Log.e("dds_test", "createAnswer...");
+            peerConnection.createAnswer(sdpObserver, sdpMediaConstraints);
         }
     }
 
@@ -104,7 +116,9 @@ public class PeerConn {
         if (peerConnection == null) {
             return;
         }
+        Log.e("dds_test", "setRemoteDescription...");
         String sdpDescription = sdp.description;
+        //sdpDescription = preferCodec(sdpDescription, "ISAC", true);
         sdpDescription = preferCodec(sdpDescription, "VP8", false);
         SessionDescription sdpRemote = new SessionDescription(sdp.type, sdpDescription);
         peerConnection.setRemoteDescription(sdpObserver, sdpRemote);
@@ -112,6 +126,7 @@ public class PeerConn {
 
     public void addRemoteIceCandidate(final IceCandidate candidate) {
         if (peerConnection != null) {
+            Log.e("dds_test", "addRemoteIceCandidate...");
             if (queuedRemoteCandidates != null) {
                 queuedRemoteCandidates.add(candidate);
             } else {
@@ -124,10 +139,20 @@ public class PeerConn {
         if (peerConnection == null) {
             return;
         }
+        Log.e("dds_test", "removeRemoteIceCandidates...");
         drainCandidates();
         peerConnection.removeIceCandidates(candidates);
     }
 
+    public void disconnect() {
+        if (peerConnection != null) {
+            peerConnection.close();
+        }
+
+    }
+
+
+    //============================================================================================
 
     private VideoTrack remoteVideoTrack;
 
@@ -229,14 +254,17 @@ public class PeerConn {
 
         @Override
         public void onCreateSuccess(SessionDescription origSdp) {
+            if (localSdp != null) return;
             String sdpDescription = origSdp.description;
             sdpDescription = preferCodec(sdpDescription, "VP8", false);
+            //sdpDescription = preferCodec(sdpDescription, "ISAC", true);
             final SessionDescription sdp = new SessionDescription(origSdp.type, sdpDescription);
             localSdp = sdp;
             executor.execute(new Runnable() {
                 @Override
                 public void run() {
                     if (peerConnection != null) {
+                        Log.e("dds_test", "setLocalDescription");
                         peerConnection.setLocalDescription(sdpObserver, localSdp);
                     }
                 }
@@ -251,22 +279,23 @@ public class PeerConn {
                     if (peerConnection == null) {
                         return;
                     }
-                    if (!isInitiator) {
-                        // 后入房间的人需要发送offer
-                        if (peerConnection.getRemoteDescription() == null) {
-                            events.onLocalDescription(localSdp, remoteUserId);
-
-                        } else {
-                            drainCandidates();
-                        }
-
-                    } else {
+                    Log.e("dds_test", "onSetSuccess");
+                    if (isInitiator) {
                         // 先入房间的人
                         if (peerConnection.getLocalDescription() != null) {
+                            Log.e("dds_test", "onLocalDescription,开始发送answer");
                             events.onLocalDescription(localSdp, remoteUserId);
                             drainCandidates();
                         } else {
-
+                            Log.d("dds_test", "Remote SDP set succesfully");
+                        }
+                    } else {
+                        // 后入房间的人需要发送offer
+                        if (peerConnection.getRemoteDescription() == null) {
+                            Log.e("dds_test", "onLocalDescription,开始发送offer");
+                            events.onLocalDescription(localSdp, remoteUserId);
+                        } else {
+                            drainCandidates();
                         }
                     }
                 }
@@ -283,6 +312,9 @@ public class PeerConn {
 
         }
     }
+
+
+    //===========================================================================================
 
     public static String preferCodec(String sdpDescription, String codec, boolean isAudio) {
         final String[] lines = sdpDescription.split("\r\n");
@@ -368,5 +400,6 @@ public class PeerConn {
             queuedRemoteCandidates = null;
         }
     }
+
 
 }

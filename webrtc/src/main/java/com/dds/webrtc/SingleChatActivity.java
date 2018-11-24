@@ -50,9 +50,6 @@ public class SingleChatActivity extends AppCompatActivity implements SignalingEv
     private String roomId;
 
 
-    private long callStartedTimeMs = 0;
-
-
     public static void openActivity(Activity activity, String url, String roomId) {
         Intent intent = new Intent(activity, SingleChatActivity.class);
         intent.putExtra("url", url);
@@ -87,14 +84,13 @@ public class SingleChatActivity extends AppCompatActivity implements SignalingEv
         pipView.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT);
         pipView.setZOrderMediaOverlay(true);
         pipView.setEnableHardwareScaler(true);
-        localProxyRenderer.setTarget(pipView);
 
         //设置大窗口的属性
         fullscreenView.init(rootEglBase.getEglBaseContext(), null);
         fullscreenView.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL);
         fullscreenView.setEnableHardwareScaler(true);
-        fullscreenView.setMirror(false);
-        remoteProxyRenderer.setTarget(fullscreenView);
+
+        setSwappedFeeds(true);
 
         //初始化
         peerConnectionClient = PeerConnectionClient.getInstance();
@@ -103,7 +99,6 @@ public class SingleChatActivity extends AppCompatActivity implements SignalingEv
     }
 
     private void startCall() {
-        callStartedTimeMs = System.currentTimeMillis();
         rtcClient = new AppRtcClient(this);
         RoomConnectionParameters parameters = new
                 RoomConnectionParameters(url, roomId, null);
@@ -111,11 +106,20 @@ public class SingleChatActivity extends AppCompatActivity implements SignalingEv
     }
 
 
+    private boolean isSwappedFeeds;  //是否本地显示大屏
+
+    private void setSwappedFeeds(boolean isSwappedFeeds) {
+        this.isSwappedFeeds = isSwappedFeeds;
+        localProxyRenderer.setTarget(isSwappedFeeds ? fullscreenView : pipView);
+        remoteProxyRenderer.setTarget(isSwappedFeeds ? pipView : fullscreenView);
+        fullscreenView.setMirror(isSwappedFeeds);
+        pipView.setMirror(!isSwappedFeeds);
+    }
+
+
     //=========================================AppRtcClient=========================================
 
     private void onConnectedToRoomInternal(SignalingParameters params) {
-        final long delta = System.currentTimeMillis() - callStartedTimeMs;
-        logAndToast("Creating peer connection, delay=" + delta + "ms");
         signalingParameters = params;
         VideoCapturer videoCapturer = createVideoCapturer();
         peerConnectionClient.createPeerConnection(rootEglBase.getEglBaseContext(), localProxyRenderer,
@@ -252,7 +256,7 @@ public class SingleChatActivity extends AppCompatActivity implements SignalingEv
 
     @Override
     public void onIceConnected() {
-
+        setSwappedFeeds(false /* isSwappedFeeds */);
     }
 
     @Override

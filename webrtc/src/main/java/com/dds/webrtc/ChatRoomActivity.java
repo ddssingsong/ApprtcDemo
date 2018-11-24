@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 
@@ -14,35 +15,23 @@ import com.dds.webrtc.callback.ProxyRenderer;
 import com.dds.webrtc.client.WebPeerClient;
 import com.dds.webrtc.signal.SignalClient;
 
-import org.webrtc.AudioSource;
-import org.webrtc.AudioTrack;
-import org.webrtc.Camera1Enumerator;
-import org.webrtc.Camera2Enumerator;
-import org.webrtc.CameraEnumerator;
 import org.webrtc.EglBase;
 import org.webrtc.IceCandidate;
-import org.webrtc.Logging;
-import org.webrtc.MediaConstraints;
-import org.webrtc.MediaStream;
-import org.webrtc.PeerConnectionFactory;
 import org.webrtc.RendererCommon;
 import org.webrtc.SessionDescription;
 import org.webrtc.StatsReport;
 import org.webrtc.SurfaceViewRenderer;
-import org.webrtc.VideoCapturer;
-import org.webrtc.VideoRenderer;
-import org.webrtc.VideoSource;
-import org.webrtc.VideoTrack;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 视频会议界面
  */
-public class ChatRoomActivity extends AppCompatActivity implements AppSignalingEvents, AppPeerConnectionEvents {
-    private final static String TAG = "dds_ChatRoomActivity";
+public class ChatRoomActivity extends AppCompatActivity implements AppSignalingEvents, AppPeerConnectionEvents, View.OnClickListener {
 
     private EglBase rootEglBase;
     private SignalClient signalClient;
@@ -50,7 +39,7 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
     private SurfaceViewRenderer render_local;
     private Button hung_up;
     private ProxyRenderer localRender;
-    private WebPeerClient peerClients;
+    private WebPeerClient peerClient;
 
     private String host;
     private String roomId;
@@ -58,6 +47,7 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
     private List<String> clients = new ArrayList<>();
     private int remoteCount = 0;
     private String clientId;
+
 
     public static void openActivity(Activity activity, String url, String roomId) {
         Intent intent = new Intent(activity, ChatRoomActivity.class);
@@ -81,6 +71,7 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
         render_content = findViewById(R.id.render_content);
         render_local = findViewById(R.id.render_local);
         hung_up = findViewById(R.id.hung_up);
+        hung_up.setOnClickListener(this);
     }
 
     private void initVar() {
@@ -98,8 +89,8 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
         localRender = new ProxyRenderer();
         localRender.setTarget(render_local);
 
-        peerClients = new WebPeerClient();
-        peerClients.initPeerConnectionFactory(this, this);
+        peerClient = WebPeerClient.getInstance();
+        peerClient.initPeerConnectionFactory(this, localRender, this);
 
     }
 
@@ -111,6 +102,32 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
 
     }
 
+
+    @Override
+    public void onClick(View v) {
+        int i = v.getId();
+        if (i == R.id.hung_up) {
+            disconnect();
+        }
+
+    }
+
+    private void disconnect() {
+        // 关闭通道
+        localRender.setTarget(null);
+        if (render_local != null) {
+            render_local.release();
+            render_local = null;
+        }
+        if (signalClient != null) {
+            signalClient.sendBye(clientId);
+        }
+
+        peerClient.disconnect();
+        finish();
+
+
+    }
 
     @Override
     protected void onDestroy() {
@@ -129,19 +146,23 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
         this.initiator = initiator;
         this.clients = clients;
         this.clientId = clientId;
+        Log.e("dds_test", "房间：" + clients.toString());
+        Log.e("dds_test", "clientId：" + clientId);
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
+
                 if (clients.size() > 1) {
                     //房间里有人，需要创建PeerConnection并发送offer
                     for (int i = 0; i < clients.size(); i++) {
                         String otherId = clients.get(i);
                         if (otherId.equals(clientId)) continue;
                         // 创建连接
-                        ProxyRenderer renderer = getSurfaceRender(remoteCount);
+
+                        ProxyRenderer renderer = getSurfaceRender(remoteCount, otherId);
                         WebPeerClient peerConnectionClient = WebPeerClient.getInstance();
                         peerConnectionClient.createPeerConnection(rootEglBase.getEglBaseContext(),
-                                localRender, renderer, initiator, otherId, null);
+                                renderer, initiator, otherId, null);
                         remoteCount++;
                         break;
                     }
@@ -154,13 +175,16 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
     }
 
 
-    private ProxyRenderer getSurfaceRender(int size) {
+    private HashMap<String, SurfaceViewRenderer> surfaceViewRendererMap = new HashMap<>();
+
+    private ProxyRenderer getSurfaceRender(int size, String otherId) {
         if (size <= 3) {
             LinearLayout linearLayout = (LinearLayout) render_content.getChildAt(0);
             SurfaceViewRenderer viewRenderer = (SurfaceViewRenderer) linearLayout.getChildAt(size);
             viewRenderer.init(rootEglBase.getEglBaseContext(), null);
             viewRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT);
             viewRenderer.setEnableHardwareScaler(true);
+            surfaceViewRendererMap.put(otherId, viewRenderer);
             ProxyRenderer proxyRenderer = new ProxyRenderer();
             proxyRenderer.setTarget(viewRenderer);
             return proxyRenderer;
@@ -172,31 +196,19 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
 
     @Override
     public void onRemoteDescription(final SessionDescription sdp, final String remoteId, String clientId, final boolean isOffer) {
-
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
                 if (isOffer) {
-                    for (int i = 0; i < peerClients.size(); i++) {
-                        if (peerClients.get(i).getRemoteUserId().equals(remoteId)) {
-                            return;
-                        }
-                    }
                     Log.e("dds_test", "有人进来了");
                     // 发起者收到了offer 需要创建peerConnection，并回复answer
-                    ProxyRenderer renderer = getSurfaceRender(remoteCount);
+                    ProxyRenderer renderer = getSurfaceRender(remoteCount, remoteId);
                     WebPeerClient peerConnectionClient = WebPeerClient.getInstance();
-                    peerConnectionClient.createPeerConnection(rootEglBase.getEglBaseContext(),
-                            localRender, renderer, initiator, remoteId, sdp);
-                    peerClients.add(peerConnectionClient);
+                    peerConnectionClient.createPeerConnection(rootEglBase.getEglBaseContext(), renderer, initiator, remoteId, sdp);
                     remoteCount++;
                 } else {
-                    //收到了answer 需要setRemoteDescription
-                    for (WebPeerClient webPeerClient : peerClients) {
-                        if (webPeerClient.getRemoteUserId().equals(remoteId)) {
-                            webPeerClient.setRemoteDescription(sdp);
-                        }
-                    }
+                    // 后进来的收到了answer 需要setRemoteDescription
+                    peerClient.setRemoteDescription(sdp, remoteId);
                 }
             }
         });
@@ -210,11 +222,7 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                for (WebPeerClient webPeerClient : peerClients) {
-                    if (webPeerClient.getRemoteUserId().equals(remoteUserId)) {
-                        webPeerClient.addRemoteIceCandidate(candidate);
-                    }
-                }
+                peerClient.addRemoteIceCandidate(candidate, remoteUserId);
             }
         });
 
@@ -226,13 +234,26 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                for (WebPeerClient webPeerClient : peerClients) {
-                    if (webPeerClient.getRemoteUserId().equals(remoteUserId)) {
-                        webPeerClient.removeRemoteIceCandidates(candidates);
-                    }
-                }
+                peerClient.removeRemoteIceCandidates(candidates, remoteUserId);
             }
         });
+    }
+
+    @Override
+    public void onRemoteDisconnect(String remoteId) {
+        peerClient.removeRemoteUser(remoteId);
+        // 关闭该人通道
+        Iterator item = surfaceViewRendererMap.entrySet().iterator();
+        while (item.hasNext()) {
+            Map.Entry entry = (Map.Entry) item.next();
+            String key = (String) entry.getKey();
+            if (key.equals(remoteId)) {
+                ((SurfaceViewRenderer) entry.getValue()).release();
+                surfaceViewRendererMap.remove(key);
+            }
+
+        }
+
     }
 
     @Override
@@ -317,4 +338,6 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
     public void onPointerCaptureChanged(boolean hasCapture) {
 
     }
+
+
 }
