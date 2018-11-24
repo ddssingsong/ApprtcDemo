@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.widget.Button;
 import android.widget.LinearLayout;
 
 import com.dds.webrtc.callback.AppPeerConnectionEvents;
@@ -47,6 +48,7 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
     private SignalClient signalClient;
     private LinearLayout render_content;
     private SurfaceViewRenderer render_local;
+    private Button hung_up;
     private ProxyRenderer localRender;
     private WebPeerClient peerClients;
 
@@ -78,7 +80,7 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
     private void initView() {
         render_content = findViewById(R.id.render_content);
         render_local = findViewById(R.id.render_local);
-
+        hung_up = findViewById(R.id.hung_up);
     }
 
     private void initVar() {
