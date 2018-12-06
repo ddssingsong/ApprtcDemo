@@ -82,7 +82,6 @@ public class PeerConnectionClient {
         this.events = events;
         iceServers = new LinkedList<>();
         iceServers.add(new PeerConnection.IceServer("stun:47.254.34.146:3478"));
-        // iceServers.add(new PeerConnection.IceServer("turn:47.254.34.146:3478", "dds", "123456"));
 
     }
 

@@ -3,15 +3,12 @@ package com.dds.webrtc.client;
 import android.util.Log;
 
 import com.dds.webrtc.callback.AppPeerConnectionEvents;
-import com.dds.webrtc.callback.ProxyRenderer;
 
-import org.webrtc.AudioTrack;
 import org.webrtc.DataChannel;
 import org.webrtc.IceCandidate;
 import org.webrtc.MediaConstraints;
 import org.webrtc.MediaStream;
 import org.webrtc.PeerConnection;
-import org.webrtc.PeerConnectionFactory;
 import org.webrtc.SdpObserver;
 import org.webrtc.SessionDescription;
 import org.webrtc.VideoRenderer;
@@ -20,7 +17,6 @@ import org.webrtc.VideoTrack;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -42,7 +38,6 @@ public class PeerConn {
     private PCObserver pcObserver = new PCObserver();
     private SDPObserver sdpObserver = new SDPObserver();
     private boolean isInitiator;
-    private MediaStream mediaStream;
 
     public PeerConn(String remoteUserId, AppPeerConnectionEvents events) {
         this.events = events;
@@ -56,14 +51,15 @@ public class PeerConn {
 
     }
 
-    public void createPeerConnection(List<PeerConnection.IceServer> iceServers, PeerConnectionFactory factory,
-                                     ProxyRenderer remoteRender, AudioTrack audioTrack, VideoTrack videoTrack, boolean isInitiator) {
+    public void createPeerConnection(List<PeerConnection.IceServer> iceServers,
+                                     VideoRenderer.Callbacks remoteRender, boolean isInitiator) {
 
         this.remoteRender = remoteRender;
         this.isInitiator = isInitiator;
 
-        createMediaConstraintsInternal();
-
+        if (pcConstraints == null) {
+            createMediaConstraintsInternal();
+        }
         PeerConnection.RTCConfiguration rtcConfig = new PeerConnection.RTCConfiguration(iceServers);
         rtcConfig.tcpCandidatePolicy = PeerConnection.TcpCandidatePolicy.DISABLED;
         rtcConfig.bundlePolicy = PeerConnection.BundlePolicy.MAXBUNDLE;
@@ -71,16 +67,10 @@ public class PeerConn {
         rtcConfig.continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY;
         rtcConfig.keyType = PeerConnection.KeyType.ECDSA;
 
-        peerConnection = factory.createPeerConnection(rtcConfig, pcConstraints, pcObserver);
-        mediaStream = factory.createLocalMediaStream("ARDAMS");
-        //设置视频
-
-        mediaStream.addTrack(audioTrack);
-        // 设置音频
-        mediaStream.addTrack(videoTrack);
+        peerConnection = WebPeerClient.factory.createPeerConnection(rtcConfig, pcConstraints, pcObserver);
 
 
-        peerConnection.addStream(mediaStream);
+        peerConnection.addStream(WebPeerClient.mediaStream);
         Log.e("dds_test", "createPeerConnection");
 
     }
@@ -127,11 +117,7 @@ public class PeerConn {
     public void addRemoteIceCandidate(final IceCandidate candidate) {
         if (peerConnection != null) {
             Log.e("dds_test", "addRemoteIceCandidate...");
-            if (queuedRemoteCandidates != null) {
-                queuedRemoteCandidates.add(candidate);
-            } else {
-                peerConnection.addIceCandidate(candidate);
-            }
+            peerConnection.addIceCandidate(candidate);
         }
     }
 
@@ -140,7 +126,6 @@ public class PeerConn {
             return;
         }
         Log.e("dds_test", "removeRemoteIceCandidates...");
-        drainCandidates();
         peerConnection.removeIceCandidates(candidates);
     }
 
@@ -285,7 +270,6 @@ public class PeerConn {
                         if (peerConnection.getLocalDescription() != null) {
                             Log.e("dds_test", "onLocalDescription,开始发送answer");
                             events.onLocalDescription(localSdp, remoteUserId);
-                            drainCandidates();
                         } else {
                             Log.d("dds_test", "Remote SDP set succesfully");
                         }
@@ -295,7 +279,6 @@ public class PeerConn {
                             Log.e("dds_test", "onLocalDescription,开始发送offer");
                             events.onLocalDescription(localSdp, remoteUserId);
                         } else {
-                            drainCandidates();
                         }
                     }
                 }
@@ -316,7 +299,7 @@ public class PeerConn {
 
     //===========================================================================================
 
-    public static String preferCodec(String sdpDescription, String codec, boolean isAudio) {
+    private static String preferCodec(String sdpDescription, String codec, boolean isAudio) {
         final String[] lines = sdpDescription.split("\r\n");
         final int mLineIndex = findMediaDescriptionLine(isAudio, lines);
         if (mLineIndex == -1) {
@@ -387,18 +370,6 @@ public class PeerConn {
         newLineParts.addAll(preferredPayloadTypes);
         newLineParts.addAll(unpreferredPayloadTypes);
         return joinString(newLineParts, " ", false /* delimiterAtEnd */);
-    }
-
-
-    private LinkedList<IceCandidate> queuedRemoteCandidates;
-
-    private void drainCandidates() {
-        if (queuedRemoteCandidates != null) {
-            for (IceCandidate candidate : queuedRemoteCandidates) {
-                peerConnection.addIceCandidate(candidate);
-            }
-            queuedRemoteCandidates = null;
-        }
     }
 
 

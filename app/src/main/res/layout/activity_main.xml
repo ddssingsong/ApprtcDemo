@@ -36,5 +36,11 @@
         android:onClick="room"
         android:text="会议" />
 
-
+    <Button
+        android:id="@+id/button2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:onClick="webrtc"
+        android:text="原生" />
 </LinearLayout>

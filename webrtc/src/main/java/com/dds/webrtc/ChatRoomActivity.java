@@ -7,7 +7,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import com.dds.webrtc.callback.AppPeerConnectionEvents;
 import com.dds.webrtc.callback.AppSignalingEvents;
@@ -35,17 +35,28 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
 
     private EglBase rootEglBase;
     private SignalClient signalClient;
-    private LinearLayout render_content;
     private SurfaceViewRenderer render_local;
+    private SurfaceViewRenderer render_remote1;
+    private SurfaceViewRenderer render_remote2;
+    private SurfaceViewRenderer render_remote3;
+    private Map<String, SurfaceViewRenderer> viewRendererMap = new HashMap<>();
+
+
+    private ProxyRenderer localRenderProxy;
+    private ProxyRenderer remoteRenderProxy1;
+    private ProxyRenderer remoteRenderProxy2;
+    private ProxyRenderer remoteRenderProxy3;
+    private Map<String, ProxyRenderer> proxyRendererMap = new HashMap<>();
+
+
     private Button hung_up;
-    private ProxyRenderer localRender;
+
     private WebPeerClient peerClient;
 
     private String host;
     private String roomId;
     private boolean initiator;
     private List<String> clients = new ArrayList<>();
-    private int remoteCount = 0;
     private String clientId;
 
 
@@ -68,8 +79,10 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
 
 
     private void initView() {
-        render_content = findViewById(R.id.render_content);
         render_local = findViewById(R.id.render_local);
+        render_remote1 = findViewById(R.id.remote_view_render1);
+        render_remote2 = findViewById(R.id.remote_view_render2);
+        render_remote3 = findViewById(R.id.remote_view_render3);
         hung_up = findViewById(R.id.hung_up);
         hung_up.setOnClickListener(this);
     }
@@ -79,18 +92,42 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
         host = intent.getStringExtra("host");
         roomId = intent.getStringExtra("roomId");
 
+        ((TextView) findViewById(R.id.room)).setText(roomId);
+
         rootEglBase = EglBase.create();
         signalClient = new SignalClient(this);
 
 
+        // 本地图像初始化
         render_local.init(rootEglBase.getEglBaseContext(), null);
         render_local.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT);
         render_local.setEnableHardwareScaler(true);
-        localRender = new ProxyRenderer();
-        localRender.setTarget(render_local);
+        render_local.setZOrderMediaOverlay(true);
+        localRenderProxy = new ProxyRenderer();
+        localRenderProxy.setTarget(render_local);
+
+        //远端图像初始化
+        render_remote1.init(rootEglBase.getEglBaseContext(), null);
+        render_remote1.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT);
+        render_remote1.setEnableHardwareScaler(true);
+        remoteRenderProxy1 = new ProxyRenderer();
+        remoteRenderProxy1.setTarget(render_remote1);
+
+        render_remote2.init(rootEglBase.getEglBaseContext(), null);
+        render_remote2.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT);
+        render_remote2.setEnableHardwareScaler(true);
+        remoteRenderProxy2 = new ProxyRenderer();
+        remoteRenderProxy2.setTarget(render_remote2);
+
+        render_remote3.init(rootEglBase.getEglBaseContext(), null);
+        render_remote3.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT);
+        render_remote3.setEnableHardwareScaler(true);
+        remoteRenderProxy3 = new ProxyRenderer();
+        remoteRenderProxy3.setTarget(render_remote3);
+
 
         peerClient = WebPeerClient.getInstance();
-        peerClient.initPeerConnectionFactory(this, localRender, this);
+        peerClient.initPeerConnectionFactory(this, localRenderProxy, this);
 
     }
 
@@ -114,11 +151,13 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
 
     private void disconnect() {
         // 关闭通道
-        localRender.setTarget(null);
+        localRenderProxy.setTarget(null);
         if (render_local != null) {
             render_local.release();
             render_local = null;
         }
+
+
         if (signalClient != null) {
             signalClient.sendBye(clientId);
         }
@@ -146,27 +185,33 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
         this.initiator = initiator;
         this.clients = clients;
         this.clientId = clientId;
-        Log.e("dds_test", "房间：" + clients.toString());
+        Log.e("dds_test", "房间的其他人：" + clients.toString());
         Log.e("dds_test", "clientId：" + clientId);
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-
-                if (clients.size() > 1) {
-                    //房间里有人，需要创建PeerConnection并发送offer
-                    for (int i = 0; i < clients.size(); i++) {
-                        String otherId = clients.get(i);
-                        if (otherId.equals(clientId)) continue;
-                        // 创建连接
-
-                        ProxyRenderer renderer = getSurfaceRender(remoteCount, otherId);
-                        WebPeerClient peerConnectionClient = WebPeerClient.getInstance();
-                        peerConnectionClient.createPeerConnection(rootEglBase.getEglBaseContext(),
-                                renderer, initiator, otherId, null);
-                        remoteCount++;
-                        break;
+                int size = ChatRoomActivity.this.clients.size();
+                //房间里有人，需要创建PeerConnection并发送offer
+                for (int i = 0; i < size; i++) {
+                    String remoteId = clients.get(i);
+                    if (viewRendererMap.size() == 0) {
+                        viewRendererMap.put(remoteId, render_remote1);
+                    } else if (viewRendererMap.size() == 1) {
+                        viewRendererMap.put(remoteId, render_remote2);
+                    } else if (viewRendererMap.size() == 2) {
+                        viewRendererMap.put(remoteId, render_remote3);
                     }
-
+                    if (proxyRendererMap.size() == 0) {
+                        proxyRendererMap.put(remoteId, remoteRenderProxy1);
+                    } else if (proxyRendererMap.size() == 1) {
+                        proxyRendererMap.put(remoteId, remoteRenderProxy2);
+                    } else if (proxyRendererMap.size() == 2) {
+                        proxyRendererMap.put(remoteId, remoteRenderProxy3);
+                    }
+                    // 创建连接
+                    WebPeerClient peerConnectionClient = WebPeerClient.getInstance();
+                    peerConnectionClient.createPeerConnection(rootEglBase.getEglBaseContext(),
+                            proxyRendererMap.get(remoteId), initiator, remoteId, null);
                 }
             }
         });
@@ -175,37 +220,32 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
     }
 
 
-    private HashMap<String, SurfaceViewRenderer> surfaceViewRendererMap = new HashMap<>();
-
-    private ProxyRenderer getSurfaceRender(int size, String otherId) {
-        if (size <= 3) {
-            LinearLayout linearLayout = (LinearLayout) render_content.getChildAt(0);
-            SurfaceViewRenderer viewRenderer = (SurfaceViewRenderer) linearLayout.getChildAt(size);
-            viewRenderer.init(rootEglBase.getEglBaseContext(), null);
-            viewRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT);
-            viewRenderer.setEnableHardwareScaler(true);
-            surfaceViewRendererMap.put(otherId, viewRenderer);
-            ProxyRenderer proxyRenderer = new ProxyRenderer();
-            proxyRenderer.setTarget(viewRenderer);
-            return proxyRenderer;
-        }
-
-        return null;
-    }
-
-
     @Override
     public void onRemoteDescription(final SessionDescription sdp, final String remoteId, String clientId, final boolean isOffer) {
+        if (!this.clientId.equals(clientId)) return;
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
                 if (isOffer) {
-                    Log.e("dds_test", "有人进来了");
+                    Log.e("dds_test", remoteId + ".进入了房间");
+                    if (viewRendererMap.size() == 0) {
+                        viewRendererMap.put(remoteId, render_remote1);
+                    } else if (viewRendererMap.size() == 1) {
+                        viewRendererMap.put(remoteId, render_remote2);
+                    } else if (viewRendererMap.size() == 2) {
+                        viewRendererMap.put(remoteId, render_remote3);
+                    }
+                    if (proxyRendererMap.size() == 0) {
+                        proxyRendererMap.put(remoteId, remoteRenderProxy1);
+                    } else if (proxyRendererMap.size() == 1) {
+                        proxyRendererMap.put(remoteId, remoteRenderProxy2);
+                    } else if (proxyRendererMap.size() == 2) {
+                        proxyRendererMap.put(remoteId, remoteRenderProxy3);
+                    }
+
                     // 发起者收到了offer 需要创建peerConnection，并回复answer
-                    ProxyRenderer renderer = getSurfaceRender(remoteCount, remoteId);
                     WebPeerClient peerConnectionClient = WebPeerClient.getInstance();
-                    peerConnectionClient.createPeerConnection(rootEglBase.getEglBaseContext(), renderer, initiator, remoteId, sdp);
-                    remoteCount++;
+                    peerConnectionClient.createPeerConnection(rootEglBase.getEglBaseContext(), proxyRendererMap.get(remoteId), true, remoteId, sdp);
                 } else {
                     // 后进来的收到了answer 需要setRemoteDescription
                     peerClient.setRemoteDescription(sdp, remoteId);
@@ -243,13 +283,13 @@ public class ChatRoomActivity extends AppCompatActivity implements AppSignalingE
     public void onRemoteDisconnect(String remoteId) {
         peerClient.removeRemoteUser(remoteId);
         // 关闭该人通道
-        Iterator item = surfaceViewRendererMap.entrySet().iterator();
+        Iterator item = viewRendererMap.entrySet().iterator();
         while (item.hasNext()) {
             Map.Entry entry = (Map.Entry) item.next();
             String key = (String) entry.getKey();
             if (key.equals(remoteId)) {
                 ((SurfaceViewRenderer) entry.getValue()).release();
-                surfaceViewRendererMap.remove(key);
+                viewRendererMap.remove(key);
             }
 
         }

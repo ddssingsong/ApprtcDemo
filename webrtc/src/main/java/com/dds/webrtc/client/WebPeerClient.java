@@ -4,7 +4,6 @@ import android.content.Context;
 import android.util.Log;
 
 import com.dds.webrtc.callback.AppPeerConnectionEvents;
-import com.dds.webrtc.callback.ProxyRenderer;
 
 import org.webrtc.AudioSource;
 import org.webrtc.AudioTrack;
@@ -39,63 +38,36 @@ import java.util.concurrent.Executors;
 public class WebPeerClient {
     private static final WebPeerClient instance = new WebPeerClient();
     private final ExecutorService executor;
-    private PeerConnectionFactory factory;
-    private MediaStream mediaStream;
-    public List<PeerConnection.IceServer> iceServers;
+    public static PeerConnectionFactory factory;
+    private List<PeerConnection.IceServer> iceServers;
     private List<PeerConn> peerConns = Collections.synchronizedList(new ArrayList<>());
 
 
     private VideoRenderer.Callbacks localRender;
-    private VideoCapturer videoCapturer;
     private AppPeerConnectionEvents events;
+
+    public static MediaStream mediaStream;
+    private Context mContext;
 
     public static WebPeerClient getInstance() {
         return instance;
     }
 
-    public WebPeerClient() {
-        //初始化转发和穿透服务器
+    private WebPeerClient() {
         iceServers = new LinkedList<>();
         iceServers.add(new PeerConnection.IceServer("stun:47.254.34.146:3478"));
-        //iceServers.add(new PeerConnection.IceServer("turn:47.254.34.146:3478", "dds", "123456"));
-        // 初始化线程
         executor = Executors.newSingleThreadScheduledExecutor();
     }
 
-    public void initPeerConnectionFactory(Context context, ProxyRenderer localRender, AppPeerConnectionEvents events) {
+    public void initPeerConnectionFactory(Context context, VideoRenderer.Callbacks localRender, AppPeerConnectionEvents events) {
         this.events = events;
         this.localRender = localRender;
-        executor.execute(new Runnable() {
-            @Override
-            public void run() {
-                //初始化Factory
-                PeerConnectionFactory.initializeInternalTracer();
-                //设置传送数据的编码
-                PeerConnectionFactory.initializeFieldTrials("WebRTC-IntelVP8/Enabled/");
-                //如果设备支持opensl Es 如果设置true则只是用AudioTracle 不使用opensles
-                WebRtcAudioManager.setBlacklistDeviceForOpenSLESUsage(true);
-//                //允许自动曝光控制
-                WebRtcAudioUtils.setWebRtcBasedAcousticEchoCanceler(false);
-                WebRtcAudioUtils.setWebRtcBasedNoiseSuppressor(false);
-
-                PeerConnectionFactory.initializeAndroidGlobals(context, true, true, true);
-                PeerConnectionFactory.Options options = new PeerConnectionFactory.Options();
-                options.networkIgnoreMask = 0;
-                factory = new PeerConnectionFactory(options);
-                videoCapturer = createVideoCapture(context);
-
-                createAudioTrack();
-                createVideoTrack(videoCapturer);
-
-            }
-        });
-
-
+        this.mContext = context;
     }
 
 
     public void createPeerConnection(EglBase.Context eglBaseContext,
-                                     ProxyRenderer remoteRender,
+                                     VideoRenderer.Callbacks remoteRender,
                                      boolean isInitiator,
                                      String remoteUserId,
                                      SessionDescription sdp) {
@@ -103,9 +75,34 @@ public class WebPeerClient {
         executor.execute(new Runnable() {
             @Override
             public void run() {
-                factory.setVideoHwAccelerationOptions(eglBaseContext, eglBaseContext);
+                if (factory == null) {
+                    PeerConnectionFactory.initializeInternalTracer();
+                    PeerConnectionFactory.initializeFieldTrials("WebRTC-IntelVP8/Enabled/");
+                    WebRtcAudioManager.setBlacklistDeviceForOpenSLESUsage(true);
+                    WebRtcAudioUtils.setWebRtcBasedAcousticEchoCanceler(false);
+                    WebRtcAudioUtils.setWebRtcBasedNoiseSuppressor(false);
+                    PeerConnectionFactory.initializeAndroidGlobals(mContext, true, true, true);
+                    PeerConnectionFactory.Options options = new PeerConnectionFactory.Options();
+                    options.networkIgnoreMask = 0;
+                    factory = new PeerConnectionFactory(options);
+                    factory.setVideoHwAccelerationOptions(eglBaseContext, eglBaseContext);
+
+
+                }
+
+                if (mediaStream == null) {
+                    createAudioTrack();
+                    createVideoTrack();
+                    mediaStream = factory.createLocalMediaStream("ARDAMS");
+                    //设置视频
+                    mediaStream.addTrack(localAudioTrack);
+                    // 设置音频
+                    mediaStream.addTrack(localVideoTrack);
+                }
+
+
                 PeerConn peerConn = new PeerConn(remoteUserId, events);
-                peerConn.createPeerConnection(iceServers, factory, remoteRender, localAudioTrack, localVideoTrack, isInitiator);
+                peerConn.createPeerConnection(iceServers, remoteRender, isInitiator);
 
                 if (isInitiator) {
                     //发起者
@@ -115,7 +112,7 @@ public class WebPeerClient {
                     // 后进来的发起通话
                     peerConn.createOffer();
                 }
-                peerConns.add(peerConn);
+                WebPeerClient.this.peerConns.add(peerConn);
 
             }
         });
@@ -237,21 +234,23 @@ public class WebPeerClient {
     private static final int HD_VIDEO_HEIGHT = 720;
     private static int videoFps = 30;
 
-    private MediaConstraints audioConstraints;
 
     private AudioTrack createAudioTrack() {
-        audioConstraints = new MediaConstraints();
-        audioConstraints.mandatory.add(
-                new MediaConstraints.KeyValuePair("levelControl", "true"));
+        MediaConstraints audioConstraints = new MediaConstraints();
+        audioConstraints.mandatory.add(new MediaConstraints.KeyValuePair("levelControl", "true"));
         audioSource = factory.createAudioSource(audioConstraints);
         localAudioTrack = factory.createAudioTrack(AUDIO_TRACK_ID, audioSource);
         localAudioTrack.setEnabled(true);
         return localAudioTrack;
     }
 
-    private VideoTrack createVideoTrack(VideoCapturer capturer) {
-        videoSource = factory.createVideoSource(capturer);
-        capturer.startCapture(HD_VIDEO_WIDTH, HD_VIDEO_HEIGHT, videoFps);
+    private VideoTrack createVideoTrack() {
+        VideoCapturer videoCapturer = createVideoCapture(mContext);
+        if (videoCapturer != null) {
+            videoSource = factory.createVideoSource(videoCapturer);
+            videoCapturer.startCapture(HD_VIDEO_WIDTH, HD_VIDEO_HEIGHT, videoFps);
+        }
+
         localVideoTrack = factory.createVideoTrack(VIDEO_TRACK_ID, videoSource);
         localVideoTrack.setEnabled(true);
         localVideoTrack.addRenderer(new VideoRenderer(localRender));

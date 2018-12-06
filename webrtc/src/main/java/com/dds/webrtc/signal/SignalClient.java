@@ -32,7 +32,7 @@ public class SignalClient {
     private AppSignalingEvents events;
     private WebSocketConnection ws;
     private WebSocketObserver wsObserver;
-    private String roomID;
+
     private static final String ROOM_JOIN = "join";
     private static final String ROOM_LEAVE = "leave";
     private String clientId;
@@ -40,8 +40,7 @@ public class SignalClient {
     private boolean initiator;
 
     private String host;
-    private String roomId;
-
+    private String roomID;
     private final Handler handler;
 
     public SignalClient(AppSignalingEvents events) {
@@ -111,8 +110,6 @@ public class SignalClient {
         } catch (JSONException e) {
             e.printStackTrace();
         }
-
-
     }
 
 
@@ -120,6 +117,7 @@ public class SignalClient {
         handler.post(new Runnable() {
             @Override
             public void run() {
+                Log.e("dds_test", "发送offer:" + clientId + "-->" + remoteId);
                 JSONObject json = new JSONObject();
                 jsonPut(json, "sdp", sdp.description);
                 jsonPut(json, "fromId", clientId);
@@ -135,6 +133,7 @@ public class SignalClient {
         handler.post(new Runnable() {
             @Override
             public void run() {
+                Log.e("dds_test", "发送Answer:" + clientId + "-->" + remoteId);
                 JSONObject json = new JSONObject();
                 jsonPut(json, "sdp", sdp.description);
                 jsonPut(json, "fromId", clientId);
@@ -145,13 +144,14 @@ public class SignalClient {
         });
     }
 
-    public void sendLocalIceCandidate(final IceCandidate candidate, final String remoteUserId, final String clientId) {
+    public void sendLocalIceCandidate(final IceCandidate candidate, final String remoteId, final String clientId) {
         handler.post(new Runnable() {
             @Override
             public void run() {
+                Log.e("dds_test", "发送IceCandidate:" + clientId + "-->" + remoteId);
                 JSONObject json = new JSONObject();
                 jsonPut(json, "type", "candidate");
-                jsonPut(json, "toId", remoteUserId);
+                jsonPut(json, "toId", remoteId);
                 jsonPut(json, "fromId", clientId);
                 jsonPut(json, "label", candidate.sdpMLineIndex);
                 jsonPut(json, "id", candidate.sdpMid);
@@ -161,14 +161,15 @@ public class SignalClient {
         });
     }
 
-    public void sendLocalIceCandidateRemovals(final IceCandidate[] candidates, final String remoteUserId, final String clientId) {
+    public void sendLocalIceCandidateRemovals(final IceCandidate[] candidates, final String remoteId, final String clientId) {
         handler.post(new Runnable() {
             @Override
             public void run() {
+                Log.e("dds_test", "发送RemoveIceCandidate:" + clientId + "-->" + remoteId);
                 JSONObject json = new JSONObject();
                 jsonPut(json, "type", "remove-candidates");
                 jsonPut(json, "fromId", clientId);
-                jsonPut(json, "toId", remoteUserId);
+                jsonPut(json, "toId", remoteId);
                 JSONArray jsonArray = new JSONArray();
                 for (final IceCandidate candidate : candidates) {
                     jsonArray.put(toJsonCandidate(candidate));
@@ -181,7 +182,7 @@ public class SignalClient {
 
     public void sendBye(final String clientId) {
         AsyncHttpURLConnection httpConnection =
-                new AsyncHttpURLConnection("POST", host + "/" + ROOM_LEAVE + "/" + roomId + "/" + clientId, null, new AsyncHttpURLConnection.AsyncHttpEvents() {
+                new AsyncHttpURLConnection("POST", host + "/" + ROOM_LEAVE + "/" + roomID + "/" + clientId, null, new AsyncHttpURLConnection.AsyncHttpEvents() {
                     @Override
                     public void onHttpError(String errorMessage) {
                     }
@@ -197,8 +198,7 @@ public class SignalClient {
         handler.post(new Runnable() {
             @Override
             public void run() {
-
-
+                Log.e("dds_test", "发送RemoveIceCandidate:" + clientId);
                 JSONObject json = new JSONObject();
                 jsonPut(json, "type", "bye");
                 jsonPut(json, "fromId", clientId);
@@ -218,7 +218,8 @@ public class SignalClient {
                 public void run() {
                     //进入房间
                     register();
-                    // 回调身份信息
+                    // 回调身份信息,去除自己
+                    clients.remove(clientId);
                     events.onConnectedToRoom(initiator, clients, clientId);
                 }
             });
@@ -232,7 +233,6 @@ public class SignalClient {
 
         @Override
         public void onTextMessage(String msg) {
-            Log.d(TAG, "WebSocketObserver onTextMessage\n" + msg);
             try {
                 JSONObject json = new JSONObject(msg);
                 String msgText = json.getString("msg");
@@ -293,7 +293,6 @@ public class SignalClient {
             json.put("cmd", "send");
             json.put("msg", message);
             message = json.toString();
-            Log.d("dds_test", "C->WSS: " + message);
             ws.sendTextMessage(message);
         } catch (JSONException e) {
             Log.e(TAG, e.toString());
