@@ -29,9 +29,6 @@ public class MainActivity extends AppCompatActivity {
 
         checkPermission();
 
-        edit_room.setText("http://120.78.233.67:8080");
-        // edit_room.setText("http://47.254.34.146:8080");
-        edit_room_id.setText("12345678");
 
 
     }
