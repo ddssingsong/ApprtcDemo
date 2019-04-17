@@ -1,1 +1,1 @@
-include ':app', ':webrtc', ':webrtclib'
+include ':app', ':libwebrtc'
