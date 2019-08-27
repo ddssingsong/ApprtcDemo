@@ -18,7 +18,7 @@ import android.opengl.GLES20;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.concurrent.Callable;
 import org.webrtc.EglBase;
@@ -205,6 +205,7 @@ public class SurfaceTextureHelper {
     handler.post(() -> {
       this.textureWidth = textureWidth;
       this.textureHeight = textureHeight;
+      tryDeliverTextureFrame();
     });
   }
 
@@ -286,6 +287,12 @@ public class SurfaceTextureHelper {
     if (isQuitting || !hasPendingTexture || isTextureInUse || listener == null) {
       return;
     }
+    if (textureWidth == 0 || textureHeight == 0) {
+      // Information about the resolution needs to be provided by a call to setTextureSize() before
+      // frames are produced.
+      Logging.w(TAG, "Texture size has not been set.");
+      return;
+    }
     isTextureInUse = true;
     hasPendingTexture = false;
 
@@ -296,9 +303,6 @@ public class SurfaceTextureHelper {
     long timestampNs = surfaceTexture.getTimestamp();
     if (timestampAligner != null) {
       timestampNs = timestampAligner.translateTimestamp(timestampNs);
-    }
-    if (textureWidth == 0 || textureHeight == 0) {
-      throw new RuntimeException("Texture size has not been set.");
     }
     final VideoFrame.Buffer buffer =
         new TextureBufferImpl(textureWidth, textureHeight, TextureBuffer.Type.OES, oesTextureId,

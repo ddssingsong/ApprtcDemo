@@ -18,7 +18,7 @@ import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Build;
 import android.os.Process;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import java.lang.Thread;
 import java.nio.ByteBuffer;
 import org.webrtc.CalledByNative;
@@ -340,6 +340,19 @@ class WebRtcAudioTrack {
     threadChecker.checkIsOnValidThread();
     Logging.d(TAG, "getStreamVolume");
     return audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL);
+  }
+
+  @CalledByNative
+  private int GetPlayoutUnderrunCount() {
+    if (Build.VERSION.SDK_INT >= 24) {
+      if (audioTrack != null) {
+        return audioTrack.getUnderrunCount();
+      } else {
+        return -1;
+      }
+    } else {
+      return -2;
+    }
   }
 
   private void logMainParameters() {

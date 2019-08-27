@@ -17,8 +17,6 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission tools:ignore="ProtectedPermissions"
-                     android:name="android.permission.CAPTURE_VIDEO_OUTPUT" />
 
     <!-- This is a test application that should always be debuggable. -->
     <application android:label="@string/app_name"
@@ -30,7 +28,8 @@
 
         <activity android:name="ConnectActivity"
                   android:label="@string/app_name"
-                  android:windowSoftInputMode="adjustPan">
+                  android:windowSoftInputMode="adjustPan"
+                  android:theme="@style/AppTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -40,13 +39,14 @@
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="https" android:host="demo-node-apprtc.herokuapp.com"/>
-                <data android:scheme="http" android:host="demo-node-apprtc.herokuapp.com"/>
+                <data android:scheme="https" android:host="www.zeng060.top:8081"/>
+                <data android:scheme="http" android:host="www.zeng060.top:8080"/>
             </intent-filter>
         </activity>
 
         <activity android:name="SettingsActivity"
-                  android:label="@string/settings_name">
+                  android:label="@string/settings_name"
+                  android:theme="@style/AppTheme">
         </activity>
 
         <activity android:name="CallActivity"

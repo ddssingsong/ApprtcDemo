@@ -17,7 +17,7 @@ import static org.webrtc.MediaCodecUtils.QCOM_PREFIX;
 import android.media.MediaCodecInfo;
 import android.media.MediaCodecList;
 import android.os.Build;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -226,7 +226,8 @@ public class HardwareVideoEncoderFactory implements VideoEncoderFactory {
   }
 
   private boolean isHardwareSupportedInCurrentSdkH264(MediaCodecInfo info) {
-    // First, H264 hardware might perform poorly on this model.
+    return true;
+	/*// First, H264 hardware might perform poorly on this model.
     if (H264_HW_EXCEPTION_MODELS.contains(Build.MODEL)) {
       return false;
     }
@@ -236,7 +237,8 @@ public class HardwareVideoEncoderFactory implements VideoEncoderFactory {
         // Exynos H264 encoder is supported in LOLLIPOP or later.
         || (name.startsWith(EXYNOS_PREFIX)
                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP);
-  }
+  	*/
+	}
 
   private boolean isMediaCodecAllowed(MediaCodecInfo info) {
     if (codecAllowedPredicate == null) {

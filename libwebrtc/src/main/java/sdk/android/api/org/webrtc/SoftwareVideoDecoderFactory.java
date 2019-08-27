@@ -10,7 +10,7 @@
 
 package org.webrtc;
 
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -32,6 +32,9 @@ public class SoftwareVideoDecoderFactory implements VideoDecoderFactory {
     if (codecType.getName().equalsIgnoreCase("VP9") && LibvpxVp9Decoder.nativeIsSupported()) {
       return new LibvpxVp9Decoder();
     }
+	if (codecType.getName().equalsIgnoreCase("H264") && H264Decoder.nativeIsSupported()) {
+      return new H264Decoder();
+    }
 
     return null;
   }
@@ -48,6 +51,9 @@ public class SoftwareVideoDecoderFactory implements VideoDecoderFactory {
     if (LibvpxVp9Decoder.nativeIsSupported()) {
       codecs.add(new VideoCodecInfo("VP9", new HashMap<>()));
     }
+	if (H264Decoder.nativeIsSupported()) {
+      codecs.add(new VideoCodecInfo("H264", new HashMap<>()));
+	}
 
     return codecs.toArray(new VideoCodecInfo[codecs.size()]);
   }

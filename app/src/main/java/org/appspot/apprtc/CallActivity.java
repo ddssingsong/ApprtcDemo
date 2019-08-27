@@ -24,7 +24,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
@@ -32,7 +32,11 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.view.WindowManager.LayoutParams;
 import android.widget.Toast;
-
+import java.io.IOException;
+import java.lang.RuntimeException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import org.appspot.apprtc.AppRTCAudioManager.AudioDevice;
 import org.appspot.apprtc.AppRTCAudioManager.AudioManagerEvents;
 import org.appspot.apprtc.AppRTCClient.RoomConnectionParameters;
@@ -56,11 +60,6 @@ import org.webrtc.VideoCapturer;
 import org.webrtc.VideoFileRenderer;
 import org.webrtc.VideoFrame;
 import org.webrtc.VideoSink;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
 
 /**
  * Activity for peer connection call setup, call waiting
@@ -236,16 +235,12 @@ public class CallActivity extends Activity implements AppRTCClient.SignalingEven
     // Create video renderers.
     pipRenderer.init(eglBase.getEglBaseContext(), null);
     pipRenderer.setScalingType(ScalingType.SCALE_ASPECT_FIT);
-    //String saveRemoteVideoToFile = intent.getStringExtra(EXTRA_SAVE_REMOTE_VIDEO_TO_FILE);
-    String saveRemoteVideoToFile = "/mnt/sdcard/test.yuv";
+    String saveRemoteVideoToFile = intent.getStringExtra(EXTRA_SAVE_REMOTE_VIDEO_TO_FILE);
 
     // When saveRemoteVideoToFile is set we save the video from the remote to a file.
     if (saveRemoteVideoToFile != null) {
-      //int videoOutWidth = intent.getIntExtra(EXTRA_SAVE_REMOTE_VIDEO_TO_FILE_WIDTH, 0);
-      //int videoOutHeight = intent.getIntExtra(EXTRA_SAVE_REMOTE_VIDEO_TO_FILE_HEIGHT, 0);
-      int videoOutWidth = 1280;
-      int videoOutHeight = 720;
-
+      int videoOutWidth = intent.getIntExtra(EXTRA_SAVE_REMOTE_VIDEO_TO_FILE_WIDTH, 0);
+      int videoOutHeight = intent.getIntExtra(EXTRA_SAVE_REMOTE_VIDEO_TO_FILE_HEIGHT, 0);
       try {
         videoFileRenderer = new VideoFileRenderer(
             saveRemoteVideoToFile, videoOutWidth, videoOutHeight, eglBase.getEglBaseContext());
@@ -577,7 +572,7 @@ public class CallActivity extends Activity implements AppRTCClient.SignalingEven
       Log.e(TAG, "AppRTC client is not allocated for a call.");
       return;
     }
-    callStartedTimeMs = System.currentTimeMillis();;
+    callStartedTimeMs = System.currentTimeMillis();
 
     // Start room connection.
     logAndToast(getString(R.string.connecting_to, roomConnectionParameters.roomUrl));

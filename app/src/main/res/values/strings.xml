@@ -27,6 +27,9 @@
     <string name="connect_description">Connect to the room</string>
     <string name="add_favorite_description">Add favorite</string>
     <string name="format_description">%1$dx%2$d @ %3$d fps</string>
+    <string name="missing_permissions_try_again">The application is missing permissions. It might not work correctly. Do you want to try again?</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
 
     <!-- Settings strings. -->
     <string name="pref_room_key">room_preference</string>
@@ -203,7 +206,7 @@
     <string name="pref_room_server_url_key">room_server_url_preference</string>
     <string name="pref_room_server_url_title">Room server URL.</string>
     <string name="pref_room_server_url_dlg">Enter a room server URL.</string>
-    <string name="pref_room_server_url_default" translatable="false">https://demo-node-apprtc.herokuapp.com</string>
+    <string name="pref_room_server_url_default" translatable="false">https://www.zeng060.top:8081</string>
 
     <string name="pref_displayhud_key">displayhud_preference</string>
     <string name="pref_displayhud_title">Display call statistics.</string>
