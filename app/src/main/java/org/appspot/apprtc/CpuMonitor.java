@@ -17,7 +17,7 @@ import android.content.IntentFilter;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.SystemClock;
-import androidx.annotation.Nullable;
+;
 import android.util.Log;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
@@ -92,7 +92,7 @@ class CpuMonitor {
   // CPU frequency in percentage from maximum.
   private final MovingAverage frequencyScale;
 
-  @Nullable
+
   private ScheduledExecutorService executor;
   private long lastStatLogTimeMs;
   private long[] cpuFreqMax;
@@ -103,7 +103,7 @@ class CpuMonitor {
   private String[] maxPath;
   private String[] curPath;
   private double[] curFreqScales;
-  @Nullable
+
   private ProcStat lastProcStat;
 
   private static class ProcStat {
@@ -488,7 +488,7 @@ class CpuMonitor {
    * of /proc/stat.
    */
   @SuppressWarnings("StringSplitter")
-  private @Nullable ProcStat readProcStat() {
+  private  ProcStat readProcStat() {
     long userTime = 0;
     long systemTime = 0;
     long idleTime = 0;

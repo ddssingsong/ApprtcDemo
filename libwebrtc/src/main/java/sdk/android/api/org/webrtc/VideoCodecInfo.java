@@ -10,7 +10,7 @@
 
 package org.webrtc;
 
-import androidx.annotation.Nullable;
+;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
@@ -51,7 +51,7 @@ public class VideoCodecInfo {
   }
 
   @Override
-  public boolean equals(@Nullable Object obj) {
+  public boolean equals( Object obj) {
     if (obj == null)
       return false;
     if (obj == this)

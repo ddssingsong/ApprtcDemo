@@ -10,17 +10,12 @@
 
 package org.webrtc;
 
-import androidx.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.webrtc.CandidatePairChangeEvent;
-import org.webrtc.DataChannel;
-import org.webrtc.MediaStreamTrack;
-import org.webrtc.RtpTransceiver;
 
 /**
  * Java-land version of the PeerConnection APIs; wraps the C++ API
@@ -235,7 +230,7 @@ public class PeerConnection {
     }
 
     @Override
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals( Object obj) {
       if (obj == null) {
         return false;
       }
@@ -268,7 +263,7 @@ public class PeerConnection {
     }
 
     public static class Builder {
-      @Nullable private final List<String> urls;
+       private final List<String> urls;
       private String username = "";
       private String password = "";
       private TlsCertPolicy tlsCertPolicy = TlsCertPolicy.TLS_CERT_POLICY_SECURE;
@@ -319,19 +314,19 @@ public class PeerConnection {
       }
     }
 
-    @Nullable
+    
     @CalledByNative("IceServer")
     List<String> getUrls() {
       return urls;
     }
 
-    @Nullable
+    
     @CalledByNative("IceServer")
     String getUsername() {
       return username;
     }
 
-    @Nullable
+    
     @CalledByNative("IceServer")
     String getPassword() {
       return password;
@@ -342,7 +337,7 @@ public class PeerConnection {
       return tlsCertPolicy;
     }
 
-    @Nullable
+    
     @CalledByNative("IceServer")
     String getHostname() {
       return hostname;
@@ -461,7 +456,7 @@ public class PeerConnection {
     public IceTransportsType iceTransportsType;
     public List<IceServer> iceServers;
     public BundlePolicy bundlePolicy;
-    @Nullable public RtcCertificatePem certificate;
+     public RtcCertificatePem certificate;
     public RtcpMuxPolicy rtcpMuxPolicy;
     public TcpCandidatePolicy tcpCandidatePolicy;
     public CandidateNetworkPolicy candidateNetworkPolicy;
@@ -495,19 +490,19 @@ public class PeerConnection {
     // 3) iceCheckMinInterval defines the minimal interval (equivalently the
     // maximum rate) that overrides the above two intervals when either of them
     // is less.
-    @Nullable public Integer iceCheckIntervalStrongConnectivityMs;
-    @Nullable public Integer iceCheckIntervalWeakConnectivityMs;
-    @Nullable public Integer iceCheckMinInterval;
+     public Integer iceCheckIntervalStrongConnectivityMs;
+     public Integer iceCheckIntervalWeakConnectivityMs;
+     public Integer iceCheckMinInterval;
     // The time period in milliseconds for which a candidate pair must wait for response to
     // connectivitiy checks before it becomes unwritable.
-    @Nullable public Integer iceUnwritableTimeMs;
+     public Integer iceUnwritableTimeMs;
     // The minimum number of connectivity checks that a candidate pair must sent without receiving
     // response before it becomes unwritable.
-    @Nullable public Integer iceUnwritableMinChecks;
+     public Integer iceUnwritableMinChecks;
     // The interval in milliseconds at which STUN candidates will resend STUN binding requests
     // to keep NAT bindings open.
     // The default value in the implementation is used if this field is null.
-    @Nullable public Integer stunCandidateKeepaliveIntervalMs;
+     public Integer stunCandidateKeepaliveIntervalMs;
     public boolean disableIPv6OnWifi;
     // By default, PeerConnection will use a limited number of IPv6 network
     // interfaces, in order to avoid too many ICE candidate pairs being created
@@ -515,7 +510,7 @@ public class PeerConnection {
     //
     // Can be set to Integer.MAX_VALUE to effectively disable the limit.
     public int maxIPv6Networks;
-    @Nullable public IntervalRange iceRegatherIntervalRange;
+     public IntervalRange iceRegatherIntervalRange;
 
     // These values will be overridden by MediaStream constraints if deprecated constraints-based
     // create peerconnection interface is used.
@@ -524,16 +519,16 @@ public class PeerConnection {
     public boolean enableCpuOveruseDetection;
     public boolean enableRtpDataChannel;
     public boolean suspendBelowMinBitrate;
-    @Nullable public Integer screencastMinBitrate;
-    @Nullable public Boolean combinedAudioVideoBwe;
-    @Nullable public Boolean enableDtlsSrtp;
+     public Integer screencastMinBitrate;
+     public Boolean combinedAudioVideoBwe;
+     public Boolean enableDtlsSrtp;
     // Use "Unknown" to represent no preference of adapter types, not the
     // preference of adapters of unknown types.
     public AdapterType networkPreference;
     public SdpSemantics sdpSemantics;
 
     // This is an optional wrapper for the C++ webrtc::TurnCustomizer.
-    @Nullable public TurnCustomizer turnCustomizer;
+     public TurnCustomizer turnCustomizer;
 
     // Actively reset the SRTP parameters whenever the DTLS transports underneath are reset for
     // every offer/answer negotiation.This is only intended to be a workaround for crbug.com/835958
@@ -556,7 +551,7 @@ public class PeerConnection {
      * frame encryption for native WebRTC. Setting this will overwrite any
      * options set through the PeerConnectionFactory (which is deprecated).
      */
-    @Nullable public CryptoOptions cryptoOptions;
+     public CryptoOptions cryptoOptions;
 
     // TODO(deadbeef): Instead of duplicating the defaults here, we should do
     // something to pick up the defaults from C++. The Objective-C equivalent
@@ -618,7 +613,7 @@ public class PeerConnection {
       return bundlePolicy;
     }
 
-    @Nullable
+    
     @CalledByNative("RTCConfiguration")
     RtcCertificatePem getCertificate() {
       return certificate;
@@ -689,37 +684,37 @@ public class PeerConnection {
       return surfaceIceCandidatesOnIceTransportTypeChanged;
     }
 
-    @Nullable
+    
     @CalledByNative("RTCConfiguration")
     Integer getIceCheckIntervalStrongConnectivity() {
       return iceCheckIntervalStrongConnectivityMs;
     }
 
-    @Nullable
+    
     @CalledByNative("RTCConfiguration")
     Integer getIceCheckIntervalWeakConnectivity() {
       return iceCheckIntervalWeakConnectivityMs;
     }
 
-    @Nullable
+    
     @CalledByNative("RTCConfiguration")
     Integer getIceCheckMinInterval() {
       return iceCheckMinInterval;
     }
 
-    @Nullable
+    
     @CalledByNative("RTCConfiguration")
     Integer getIceUnwritableTimeout() {
       return iceUnwritableTimeMs;
     }
 
-    @Nullable
+    
     @CalledByNative("RTCConfiguration")
     Integer getIceUnwritableMinChecks() {
       return iceUnwritableMinChecks;
     }
 
-    @Nullable
+    
     @CalledByNative("RTCConfiguration")
     Integer getStunCandidateKeepaliveInterval() {
       return stunCandidateKeepaliveIntervalMs;
@@ -735,13 +730,13 @@ public class PeerConnection {
       return maxIPv6Networks;
     }
 
-    @Nullable
+    
     @CalledByNative("RTCConfiguration")
     IntervalRange getIceRegatherIntervalRange() {
       return iceRegatherIntervalRange;
     }
 
-    @Nullable
+    
     @CalledByNative("RTCConfiguration")
     TurnCustomizer getTurnCustomizer() {
       return turnCustomizer;
@@ -772,19 +767,19 @@ public class PeerConnection {
       return suspendBelowMinBitrate;
     }
 
-    @Nullable
+    
     @CalledByNative("RTCConfiguration")
     Integer getScreencastMinBitrate() {
       return screencastMinBitrate;
     }
 
-    @Nullable
+    
     @CalledByNative("RTCConfiguration")
     Boolean getCombinedAudioVideoBwe() {
       return combinedAudioVideoBwe;
     }
 
-    @Nullable
+    
     @CalledByNative("RTCConfiguration")
     Boolean getEnableDtlsSrtp() {
       return enableDtlsSrtp;
@@ -815,7 +810,7 @@ public class PeerConnection {
       return useMediaTransportForDataChannels;
     }
 
-    @Nullable
+    
     @CalledByNative("RTCConfiguration")
     CryptoOptions getCryptoOptions() {
       return cryptoOptions;
@@ -1087,7 +1082,7 @@ public class PeerConnection {
   }
 
   public RtpTransceiver addTransceiver(
-      MediaStreamTrack track, @Nullable RtpTransceiver.RtpTransceiverInit init) {
+      MediaStreamTrack track,  RtpTransceiver.RtpTransceiverInit init) {
     if (track == null) {
       throw new NullPointerException("No MediaStreamTrack specified for addTransceiver.");
     }
@@ -1108,7 +1103,7 @@ public class PeerConnection {
   }
 
   public RtpTransceiver addTransceiver(
-      MediaStreamTrack.MediaType mediaType, @Nullable RtpTransceiver.RtpTransceiverInit init) {
+      MediaStreamTrack.MediaType mediaType,  RtpTransceiver.RtpTransceiverInit init) {
     if (mediaType == null) {
       throw new NullPointerException("No MediaType specified for addTransceiver.");
     }
@@ -1125,7 +1120,7 @@ public class PeerConnection {
 
   // Older, non-standard implementation of getStats.
   @Deprecated
-  public boolean getStats(StatsObserver observer, @Nullable MediaStreamTrack track) {
+  public boolean getStats(StatsObserver observer,  MediaStreamTrack track) {
     return nativeOldGetStats(observer, (track == null) ? 0 : track.getNativeMediaStreamTrack());
   }
 

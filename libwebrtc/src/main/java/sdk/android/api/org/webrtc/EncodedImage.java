@@ -10,7 +10,6 @@
 
 package org.webrtc;
 
-import androidx.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 
@@ -54,11 +53,11 @@ public class EncodedImage {
   public final FrameType frameType;
   public final int rotation;
   public final boolean completeFrame;
-  public final @Nullable Integer qp;
+  public final  Integer qp;
 
   @CalledByNative
   private EncodedImage(ByteBuffer buffer, int encodedWidth, int encodedHeight, long captureTimeNs,
-      FrameType frameType, int rotation, boolean completeFrame, @Nullable Integer qp) {
+      FrameType frameType, int rotation, boolean completeFrame,  Integer qp) {
     this.buffer = buffer;
     this.encodedWidth = encodedWidth;
     this.encodedHeight = encodedHeight;
@@ -106,7 +105,7 @@ public class EncodedImage {
   }
 
   @CalledByNative
-  private @Nullable Integer getQp() {
+  private  Integer getQp() {
     return qp;
   }
 
@@ -122,7 +121,7 @@ public class EncodedImage {
     private EncodedImage.FrameType frameType;
     private int rotation;
     private boolean completeFrame;
-    private @Nullable Integer qp;
+    private  Integer qp;
 
     private Builder() {}
 
@@ -167,7 +166,7 @@ public class EncodedImage {
       return this;
     }
 
-    public Builder setQp(@Nullable Integer qp) {
+    public Builder setQp( Integer qp) {
       this.qp = qp;
       return this;
     }

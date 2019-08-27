@@ -14,7 +14,7 @@ import android.content.Context;
 import android.os.Environment;
 import android.os.ParcelFileDescriptor;
 import android.preference.PreferenceManager;
-import androidx.annotation.Nullable;
+;
 import android.util.Log;
 import java.io.File;
 import java.io.IOException;
@@ -126,20 +126,20 @@ public class PeerConnectionClient {
   private final PeerConnectionParameters peerConnectionParameters;
   private final PeerConnectionEvents events;
 
-  @Nullable
+
   private PeerConnectionFactory factory;
-  @Nullable
+
   private PeerConnection peerConnection;
-  @Nullable
+
   private AudioSource audioSource;
-  @Nullable private SurfaceTextureHelper surfaceTextureHelper;
-  @Nullable private VideoSource videoSource;
+   private SurfaceTextureHelper surfaceTextureHelper;
+   private VideoSource videoSource;
   private boolean preferIsac;
   private boolean videoCapturerStopped;
   private boolean isError;
-  @Nullable
+
   private VideoSink localRender;
-  @Nullable private List<VideoSink> remoteSinks;
+   private List<VideoSink> remoteSinks;
   private SignalingParameters signalingParameters;
   private int videoWidth;
   private int videoHeight;
@@ -149,34 +149,34 @@ public class PeerConnectionClient {
   // Queued remote ICE candidates are consumed only after both local and
   // remote descriptions are set. Similarly local ICE candidates are sent to
   // remote peer after both local and remote description are set.
-  @Nullable
+
   private List<IceCandidate> queuedRemoteCandidates;
   private boolean isInitiator;
-  @Nullable
+
   private SessionDescription localSdp; // either offer or answer SDP
-  @Nullable
+
   private VideoCapturer videoCapturer;
   // enableVideo is set to true if video should be rendered and sent.
   private boolean renderVideo = true;
-  @Nullable
+
   private VideoTrack localVideoTrack;
-  @Nullable
+
   private VideoTrack remoteVideoTrack;
-  @Nullable
+
   private RtpSender localVideoSender;
   // enableAudio is set to true if audio should be sent.
   private boolean enableAudio = false;
-  @Nullable
+
   private AudioTrack localAudioTrack;
-  @Nullable
+
   private DataChannel dataChannel;
   private final boolean dataChannelEnabled;
   // Enable RtcEventLog.
-  @Nullable
+
   private RtcEventLog rtcEventLog;
   // Implements the WebRtcAudioRecordSamplesReadyCallback interface and writes
   // recorded audio samples to an output file.
-  @Nullable private RecordedAudioToFileController saveRecordedAudioToFile;
+   private RecordedAudioToFileController saveRecordedAudioToFile;
 
   /**
    * Peer connection parameters.
@@ -861,7 +861,7 @@ public class PeerConnectionClient {
     });
   }
 
-  public void setVideoMaxBitrate(@Nullable final Integer maxBitrateKbps) {
+  public void setVideoMaxBitrate( final Integer maxBitrateKbps) {
     executor.execute(() -> {
       if (peerConnection == null || localVideoSender == null || isError) {
         return;
@@ -899,7 +899,7 @@ public class PeerConnectionClient {
     });
   }
 
-  @Nullable
+
   private AudioTrack createAudioTrack() {
     audioSource = factory.createAudioSource(audioConstraints);
     localAudioTrack = factory.createAudioTrack(AUDIO_TRACK_ID, audioSource);
@@ -907,7 +907,7 @@ public class PeerConnectionClient {
     return localAudioTrack;
   }
 
-  @Nullable
+
   private VideoTrack createVideoTrack(VideoCapturer capturer) {
     surfaceTextureHelper =
         SurfaceTextureHelper.create("CaptureThread", rootEglBase.getEglBaseContext());
@@ -934,7 +934,7 @@ public class PeerConnectionClient {
   }
 
   // Returns the remote VideoTrack, assuming there is only one.
-  private @Nullable VideoTrack getRemoteVideoTrack() {
+  private  VideoTrack getRemoteVideoTrack() {
     for (RtpTransceiver transceiver : peerConnection.getTransceivers()) {
       MediaStreamTrack track = transceiver.getReceiver().track();
       if (track instanceof VideoTrack) {
@@ -1063,7 +1063,7 @@ public class PeerConnectionClient {
     return buffer.toString();
   }
 
-  private static @Nullable String movePayloadTypesToFront(
+  private static  String movePayloadTypesToFront(
       List<String> preferredPayloadTypes, String mLine) {
     // The format of the media description line should be: m=<media> <port> <proto> <fmt> ...
     final List<String> origLineParts = Arrays.asList(mLine.split(" "));

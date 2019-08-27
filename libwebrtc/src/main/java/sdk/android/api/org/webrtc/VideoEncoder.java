@@ -10,11 +10,6 @@
 
 package org.webrtc;
 
-import androidx.annotation.Nullable;
-import java.util.Collections;
-import java.util.List;
-import org.webrtc.EncodedImage;
-
 /**
  * Interface for a video encoder that can be used with WebRTC. All calls will be made on the
  * encoding thread. The encoder may be constructed on a different thread and changing thread after
@@ -122,8 +117,8 @@ public interface VideoEncoder {
   /** Settings for WebRTC quality based scaling. */
   public class ScalingSettings {
     public final boolean on;
-    @Nullable public final Integer low;
-    @Nullable public final Integer high;
+     public final Integer low;
+     public final Integer high;
 
     /**
      * Settings to disable quality based scaling.

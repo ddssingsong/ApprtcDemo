@@ -10,10 +10,8 @@
 
 package org.webrtc;
 
-import androidx.annotation.Nullable;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
-import java.util.List;
 
 /** Helper class that combines HW and SW encoders. */
 public class DefaultVideoEncoderFactory implements VideoEncoderFactory {
@@ -32,7 +30,7 @@ public class DefaultVideoEncoderFactory implements VideoEncoderFactory {
     this.hardwareVideoEncoderFactory = hardwareVideoEncoderFactory;
   }
 
-  @Nullable
+  
   @Override
   public VideoEncoder createEncoder(VideoCodecInfo info) {
     final VideoEncoder softwareEncoder = softwareVideoEncoderFactory.createEncoder(info);

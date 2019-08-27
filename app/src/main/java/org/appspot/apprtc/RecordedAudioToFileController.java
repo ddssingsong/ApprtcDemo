@@ -12,7 +12,7 @@ package org.appspot.apprtc;
 
 import android.media.AudioFormat;
 import android.os.Environment;
-import androidx.annotation.Nullable;
+;
 import android.util.Log;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -33,7 +33,7 @@ public class RecordedAudioToFileController implements SamplesReadyCallback {
 
   private final Object lock = new Object();
   private final ExecutorService executor;
-  @Nullable private OutputStream rawAudioFileOutputStream;
+   private OutputStream rawAudioFileOutputStream;
   private boolean isRunning;
   private long fileSizeInBytes;
 

@@ -10,25 +10,24 @@
 
 package org.webrtc;
 
-import static org.webrtc.MediaCodecUtils.EXYNOS_PREFIX;
-import static org.webrtc.MediaCodecUtils.QCOM_PREFIX;
-
 import android.media.MediaCodecInfo;
 import android.media.MediaCodecInfo.CodecCapabilities;
 import android.media.MediaCodecList;
 import android.os.Build;
-import androidx.annotation.Nullable;
+
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+
+import static org.webrtc.MediaCodecUtils.EXYNOS_PREFIX;
+import static org.webrtc.MediaCodecUtils.QCOM_PREFIX;
 
 /** Factory for decoders backed by Android MediaCodec API. */
 @SuppressWarnings("deprecation") // API level 16 requires use of deprecated methods.
 class MediaCodecVideoDecoderFactory implements VideoDecoderFactory {
   private static final String TAG = "MediaCodecVideoDecoderFactory";
 
-  private final @Nullable EglBase.Context sharedContext;
-  private final @Nullable Predicate<MediaCodecInfo> codecAllowedPredicate;
+  private final  EglBase.Context sharedContext;
+  private final  Predicate<MediaCodecInfo> codecAllowedPredicate;
 
   /**
    * MediaCodecVideoDecoderFactory with support of codecs filtering.
@@ -38,13 +37,13 @@ class MediaCodecVideoDecoderFactory implements VideoDecoderFactory {
    * @param codecAllowedPredicate optional predicate to test if codec allowed. All codecs are
    *                              allowed when predicate is not provided.
    */
-  public MediaCodecVideoDecoderFactory(@Nullable EglBase.Context sharedContext,
-      @Nullable Predicate<MediaCodecInfo> codecAllowedPredicate) {
+  public MediaCodecVideoDecoderFactory( EglBase.Context sharedContext,
+       Predicate<MediaCodecInfo> codecAllowedPredicate) {
     this.sharedContext = sharedContext;
     this.codecAllowedPredicate = codecAllowedPredicate;
   }
 
-  @Nullable
+  
   @Override
   public VideoDecoder createDecoder(VideoCodecInfo codecType) {
     VideoCodecType type = VideoCodecType.valueOf(codecType.getName());
@@ -83,7 +82,7 @@ class MediaCodecVideoDecoderFactory implements VideoDecoderFactory {
     return supportedCodecInfos.toArray(new VideoCodecInfo[supportedCodecInfos.size()]);
   }
 
-  private @Nullable MediaCodecInfo findCodecForType(VideoCodecType type) {
+  private  MediaCodecInfo findCodecForType(VideoCodecType type) {
     // HW decoding is not supported on builds before KITKAT.
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
       return null;

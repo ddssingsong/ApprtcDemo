@@ -13,9 +13,9 @@ package org.webrtc;
 import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
-import androidx.annotation.Nullable;
 import android.view.Surface;
 import android.view.SurfaceHolder;
+
 import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.egl.EGLContext;
@@ -33,7 +33,7 @@ class EglBase10Impl implements EglBase10 {
 
   private final EGL10 egl;
   private EGLContext eglContext;
-  @Nullable private EGLConfig eglConfig;
+   private EGLConfig eglConfig;
   private EGLDisplay eglDisplay;
   private EGLSurface eglSurface = EGL10.EGL_NO_SURFACE;
 
@@ -111,13 +111,13 @@ class EglBase10Impl implements EglBase10 {
       @Override
       public void setKeepScreenOn(boolean b) {}
 
-      @Nullable
+
       @Override
       public Canvas lockCanvas() {
         return null;
       }
 
-      @Nullable
+
       @Override
       public Canvas lockCanvas(Rect rect) {
         return null;
@@ -126,7 +126,7 @@ class EglBase10Impl implements EglBase10 {
       @Override
       public void unlockCanvasAndPost(Canvas canvas) {}
 
-      @Nullable
+
       @Override
       public Rect getSurfaceFrame() {
         return null;
@@ -312,7 +312,7 @@ class EglBase10Impl implements EglBase10 {
   }
 
   // Return an EGLConfig, or die trying.
-  private EGLContext createEglContext(@Nullable EGLContext sharedContext, EGLDisplay eglDisplay,
+  private EGLContext createEglContext( EGLContext sharedContext, EGLDisplay eglDisplay,
       EGLConfig eglConfig, int openGlesVersion) {
     if (sharedContext != null && sharedContext == EGL10.EGL_NO_CONTEXT) {
       throw new RuntimeException("Invalid sharedContext");

@@ -10,12 +10,10 @@
 
 package org.webrtc;
 
-import android.annotation.TargetApi;
-import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaCodecInfo.CodecCapabilities;
 import android.os.Build;
-import androidx.annotation.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -66,7 +64,7 @@ class MediaCodecUtils {
     }
   }
 
-  static @Nullable Integer selectColorFormat(
+  static  Integer selectColorFormat(
       int[] supportedColorFormats, CodecCapabilities capabilities) {
     for (int supportedColorFormat : supportedColorFormats) {
       for (int codecColorFormat : capabilities.colorFormats) {

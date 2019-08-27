@@ -24,7 +24,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import androidx.annotation.Nullable;
+;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
@@ -150,24 +150,24 @@ public class CallActivity extends Activity implements AppRTCClient.SignalingEven
 
   private final ProxyVideoSink remoteProxyRenderer = new ProxyVideoSink();
   private final ProxyVideoSink localProxyVideoSink = new ProxyVideoSink();
-  @Nullable private PeerConnectionClient peerConnectionClient;
-  @Nullable
+   private PeerConnectionClient peerConnectionClient;
+
   private AppRTCClient appRtcClient;
-  @Nullable
+
   private SignalingParameters signalingParameters;
-  @Nullable private AppRTCAudioManager audioManager;
-  @Nullable
+   private AppRTCAudioManager audioManager;
+
   private SurfaceViewRenderer pipRenderer;
-  @Nullable
+
   private SurfaceViewRenderer fullscreenRenderer;
-  @Nullable
+
   private VideoFileRenderer videoFileRenderer;
   private final List<VideoSink> remoteSinks = new ArrayList<>();
   private Toast logToast;
   private boolean commandLineRun;
   private boolean activityRunning;
   private RoomConnectionParameters roomConnectionParameters;
-  @Nullable
+
   private PeerConnectionParameters peerConnectionParameters;
   private boolean connected;
   private boolean isError;
@@ -428,7 +428,7 @@ public class CallActivity extends Activity implements AppRTCClient.SignalingEven
     return getIntent().getBooleanExtra(EXTRA_CAPTURETOTEXTURE_ENABLED, false);
   }
 
-  private @Nullable VideoCapturer createCameraCapturer(CameraEnumerator enumerator) {
+  private  VideoCapturer createCameraCapturer(CameraEnumerator enumerator) {
     final String[] deviceNames = enumerator.getDeviceNames();
 
     // First, try to find front facing camera
@@ -461,7 +461,7 @@ public class CallActivity extends Activity implements AppRTCClient.SignalingEven
   }
 
   @TargetApi(21)
-  private @Nullable VideoCapturer createScreenCapturer() {
+  private  VideoCapturer createScreenCapturer() {
     if (mediaProjectionPermissionResultCode != Activity.RESULT_OK) {
       reportError("User didn't give permission to capture the screen.");
       return null;
@@ -698,7 +698,7 @@ public class CallActivity extends Activity implements AppRTCClient.SignalingEven
     });
   }
 
-  private @Nullable VideoCapturer createVideoCapturer() {
+  private  VideoCapturer createVideoCapturer() {
     final VideoCapturer videoCapturer;
     String videoFileAsCamera = getIntent().getStringExtra(EXTRA_VIDEO_FILE_AS_CAMERA);
     if (videoFileAsCamera != null) {

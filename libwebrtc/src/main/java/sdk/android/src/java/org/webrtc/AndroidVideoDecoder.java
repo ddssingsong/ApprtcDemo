@@ -10,19 +10,19 @@
 
 package org.webrtc;
 
-import android.annotation.TargetApi;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo.CodecCapabilities;
 import android.media.MediaFormat;
 import android.os.SystemClock;
-import androidx.annotation.Nullable;
 import android.view.Surface;
+
+import org.webrtc.ThreadUtils.ThreadChecker;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
-import org.webrtc.ThreadUtils.ThreadChecker;
 
 /**
  * Android hardware video decoder.
@@ -75,7 +75,7 @@ class AndroidVideoDecoder implements VideoDecoder, VideoSink {
   // Output thread runs a loop which polls MediaCodec for decoded output buffers.  It reformats
   // those buffers into VideoFrames and delivers them to the callback.  Variable is set on decoder
   // thread and is immutable while the codec is running.
-  @Nullable private Thread outputThread;
+   private Thread outputThread;
 
   // Checker that ensures work is run on the output thread.
   private ThreadChecker outputThreadChecker;
@@ -85,7 +85,7 @@ class AndroidVideoDecoder implements VideoDecoder, VideoSink {
   private ThreadChecker decoderThreadChecker;
 
   private volatile boolean running;
-  @Nullable private volatile Exception shutdownException;
+   private volatile Exception shutdownException;
 
   // Dimensions (width, height, stride, and sliceHeight) may be accessed by either the decode thread
   // or the output thread.  Accesses should be protected with this lock.
@@ -103,10 +103,10 @@ class AndroidVideoDecoder implements VideoDecoder, VideoSink {
   // on the decoder thread.
   private boolean keyFrameRequired;
 
-  private final @Nullable EglBase.Context sharedContext;
+  private final  EglBase.Context sharedContext;
   // Valid and immutable while the decoder is running.
-  @Nullable private SurfaceTextureHelper surfaceTextureHelper;
-  @Nullable private Surface surface;
+   private SurfaceTextureHelper surfaceTextureHelper;
+   private Surface surface;
 
   private static class DecodedTextureMetadata {
     final long presentationTimestampUs;
@@ -120,17 +120,17 @@ class AndroidVideoDecoder implements VideoDecoder, VideoSink {
 
   // Metadata for the last frame rendered to the texture.
   private final Object renderedTextureMetadataLock = new Object();
-  @Nullable private DecodedTextureMetadata renderedTextureMetadata;
+   private DecodedTextureMetadata renderedTextureMetadata;
 
   // Decoding proceeds asynchronously.  This callback returns decoded frames to the caller.  Valid
   // and immutable while the decoder is running.
-  @Nullable private Callback callback;
+   private Callback callback;
 
   // Valid and immutable while the decoder is running.
-  @Nullable private MediaCodecWrapper codec;
+   private MediaCodecWrapper codec;
 
   AndroidVideoDecoder(MediaCodecWrapperFactory mediaCodecWrapperFactory, String codecName,
-      VideoCodecType codecType, int colorFormat, @Nullable EglBase.Context sharedContext) {
+      VideoCodecType codecType, int colorFormat,  EglBase.Context sharedContext) {
     if (!isSupportedColorFormat(colorFormat)) {
       throw new IllegalArgumentException("Unsupported color format: " + colorFormat);
     }

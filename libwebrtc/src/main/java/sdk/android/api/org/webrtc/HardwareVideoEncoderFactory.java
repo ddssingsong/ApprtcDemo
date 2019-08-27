@@ -10,18 +10,17 @@
 
 package org.webrtc;
 
-import static org.webrtc.MediaCodecUtils.EXYNOS_PREFIX;
-import static org.webrtc.MediaCodecUtils.INTEL_PREFIX;
-import static org.webrtc.MediaCodecUtils.QCOM_PREFIX;
-
 import android.media.MediaCodecInfo;
 import android.media.MediaCodecList;
 import android.os.Build;
-import androidx.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
+
+import static org.webrtc.MediaCodecUtils.EXYNOS_PREFIX;
+import static org.webrtc.MediaCodecUtils.INTEL_PREFIX;
+import static org.webrtc.MediaCodecUtils.QCOM_PREFIX;
 
 /** Factory for android hardware video encoders. */
 @SuppressWarnings("deprecation") // API 16 requires the use of deprecated methods.
@@ -39,10 +38,10 @@ public class HardwareVideoEncoderFactory implements VideoEncoderFactory {
   private static final List<String> H264_HW_EXCEPTION_MODELS =
       Arrays.asList("SAMSUNG-SGH-I337", "Nexus 7", "Nexus 4");
 
-  @Nullable private final EglBase14.Context sharedContext;
+   private final EglBase14.Context sharedContext;
   private final boolean enableIntelVp8Encoder;
   private final boolean enableH264HighProfile;
-  @Nullable private final Predicate<MediaCodecInfo> codecAllowedPredicate;
+   private final Predicate<MediaCodecInfo> codecAllowedPredicate;
 
   /**
    * Creates a HardwareVideoEncoderFactory that supports surface texture encoding.
@@ -69,7 +68,7 @@ public class HardwareVideoEncoderFactory implements VideoEncoderFactory {
    *                              when predicate is not provided.
    */
   public HardwareVideoEncoderFactory(EglBase.Context sharedContext, boolean enableIntelVp8Encoder,
-      boolean enableH264HighProfile, @Nullable Predicate<MediaCodecInfo> codecAllowedPredicate) {
+      boolean enableH264HighProfile,  Predicate<MediaCodecInfo> codecAllowedPredicate) {
     // Texture mode requires EglBase14.
     if (sharedContext instanceof EglBase14.Context) {
       this.sharedContext = (EglBase14.Context) sharedContext;
@@ -87,7 +86,7 @@ public class HardwareVideoEncoderFactory implements VideoEncoderFactory {
     this(null, enableIntelVp8Encoder, enableH264HighProfile);
   }
 
-  @Nullable
+  
   @Override
   public VideoEncoder createEncoder(VideoCodecInfo input) {
     // HW encoding is not supported below Android Kitkat.
@@ -159,7 +158,7 @@ public class HardwareVideoEncoderFactory implements VideoEncoderFactory {
     return supportedCodecInfos.toArray(new VideoCodecInfo[supportedCodecInfos.size()]);
   }
 
-  private @Nullable MediaCodecInfo findCodecForType(VideoCodecType type) {
+  private  MediaCodecInfo findCodecForType(VideoCodecType type) {
     for (int i = 0; i < MediaCodecList.getCodecCount(); ++i) {
       MediaCodecInfo info = null;
       try {

@@ -10,10 +10,6 @@
 
 package org.webrtc;
 
-import androidx.annotation.Nullable;
-import org.webrtc.VideoFrame;
-import org.webrtc.VideoProcessor;
-
 /**
  * This class is meant to be a simple layer that only handles the JNI wrapping of a C++
  * AndroidVideoTrackSource, that can easily be mocked out in Java unit tests. Refrain from adding
@@ -44,7 +40,7 @@ class NativeAndroidVideoTrackSource {
    * frame should be dropped, otherwise the frame should be adapted in accordance to the frame
    * adaptation parameters before calling onFrameCaptured().
    */
-  @Nullable
+  
   public VideoProcessor.FrameAdaptationParameters adaptFrame(VideoFrame frame) {
     return nativeAdaptFrame(nativeAndroidVideoTrackSource, frame.getBuffer().getWidth(),
         frame.getBuffer().getHeight(), frame.getRotation(), frame.getTimestampNs());
@@ -65,8 +61,8 @@ class NativeAndroidVideoTrackSource {
    * the requested fps.
    */
   public void adaptOutputFormat(VideoSource.AspectRatio targetLandscapeAspectRatio,
-      @Nullable Integer maxLandscapePixelCount, VideoSource.AspectRatio targetPortraitAspectRatio,
-      @Nullable Integer maxPortraitPixelCount, @Nullable Integer maxFps) {
+       Integer maxLandscapePixelCount, VideoSource.AspectRatio targetPortraitAspectRatio,
+       Integer maxPortraitPixelCount,  Integer maxFps) {
     nativeAdaptOutputFormat(nativeAndroidVideoTrackSource, targetLandscapeAspectRatio.width,
         targetLandscapeAspectRatio.height, maxLandscapePixelCount, targetPortraitAspectRatio.width,
         targetPortraitAspectRatio.height, maxPortraitPixelCount, maxFps);
@@ -82,10 +78,10 @@ class NativeAndroidVideoTrackSource {
 
   private static native void nativeSetState(long nativeAndroidVideoTrackSource, boolean isLive);
   private static native void nativeAdaptOutputFormat(long nativeAndroidVideoTrackSource,
-      int landscapeWidth, int landscapeHeight, @Nullable Integer maxLandscapePixelCount,
-      int portraitWidth, int portraitHeight, @Nullable Integer maxPortraitPixelCount,
-      @Nullable Integer maxFps);
-  @Nullable
+      int landscapeWidth, int landscapeHeight,  Integer maxLandscapePixelCount,
+      int portraitWidth, int portraitHeight,  Integer maxPortraitPixelCount,
+       Integer maxFps);
+  
   private static native VideoProcessor.FrameAdaptationParameters nativeAdaptFrame(
       long nativeAndroidVideoTrackSource, int width, int height, int rotation, long timestampNs);
   private static native void nativeOnFrameCaptured(

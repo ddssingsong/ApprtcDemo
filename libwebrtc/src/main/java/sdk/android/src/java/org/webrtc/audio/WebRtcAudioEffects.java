@@ -13,13 +13,12 @@ package org.webrtc.audio;
 import android.media.audiofx.AcousticEchoCanceler;
 import android.media.audiofx.AudioEffect;
 import android.media.audiofx.AudioEffect.Descriptor;
-import android.media.audiofx.AutomaticGainControl;
 import android.media.audiofx.NoiseSuppressor;
 import android.os.Build;
-import androidx.annotation.Nullable;
-import java.util.List;
-import java.util.UUID;
+
 import org.webrtc.Logging;
+
+import java.util.UUID;
 
 // This class wraps control of three different platform effects. Supported
 // effects are: AcousticEchoCanceler (AEC) and NoiseSuppressor (NS).
@@ -40,12 +39,12 @@ class WebRtcAudioEffects {
   // Contains the available effect descriptors returned from the
   // AudioEffect.getEffects() call. This result is cached to avoid doing the
   // slow OS call multiple times.
-  private static @Nullable Descriptor[] cachedEffects;
+  private static  Descriptor[] cachedEffects;
 
   // Contains the audio effect objects. Created in enable() and destroyed
   // in release().
-  private @Nullable AcousticEchoCanceler aec;
-  private @Nullable NoiseSuppressor ns;
+  private  AcousticEchoCanceler aec;
+  private  NoiseSuppressor ns;
 
   // Affects the final state given to the setEnabled() method on each effect.
   // The default state is set to "disabled" but each effect can also be enabled
@@ -206,7 +205,7 @@ class WebRtcAudioEffects {
 
   // Returns the cached copy of the audio effects array, if available, or
   // queries the operating system for the list of effects.
-  private static @Nullable Descriptor[] getAvailableEffects() {
+  private static  Descriptor[] getAvailableEffects() {
     if (cachedEffects != null) {
       return cachedEffects;
     }

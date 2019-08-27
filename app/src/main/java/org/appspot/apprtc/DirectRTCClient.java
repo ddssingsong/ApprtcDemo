@@ -10,7 +10,7 @@
 
 package org.appspot.apprtc;
 
-import androidx.annotation.Nullable;
+;
 import android.util.Log;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
@@ -52,7 +52,7 @@ public class DirectRTCClient implements AppRTCClient, TCPChannelClient.TCPChanne
 
   private final ExecutorService executor;
   private final SignalingEvents events;
-  @Nullable
+
   private TCPChannelClient tcpClient;
   private RoomConnectionParameters connectionParameters;
 

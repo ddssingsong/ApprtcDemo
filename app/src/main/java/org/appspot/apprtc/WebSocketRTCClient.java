@@ -14,7 +14,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
 
-import androidx.annotation.Nullable;
+;
 
 import org.appspot.apprtc.RoomParametersFetcher.RoomParametersFetcherEvents;
 import org.appspot.apprtc.WebSocketChannelClient.WebSocketChannelEvents;
@@ -379,7 +379,7 @@ public class WebSocketRTCClient implements AppRTCClient, WebSocketChannelEvents 
 
     // Send SDP or ICE candidate to a room server.
     private void sendPostMessage(
-            final MessageType messageType, final String url, @Nullable final String message) {
+            final MessageType messageType, final String url,  final String message) {
         String logInfo = url;
         if (message != null) {
             logInfo += ". Message: " + message;
