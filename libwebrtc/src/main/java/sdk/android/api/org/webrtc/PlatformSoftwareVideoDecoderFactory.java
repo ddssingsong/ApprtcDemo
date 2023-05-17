@@ -11,7 +11,7 @@
 package org.webrtc;
 
 import android.media.MediaCodecInfo;
-
+import androidx.annotation.Nullable;
 import java.util.Arrays;
 
 /** Factory for Android platform software VideoDecoders. */
@@ -21,19 +21,9 @@ public class PlatformSoftwareVideoDecoderFactory extends MediaCodecVideoDecoderF
    */
   private static final Predicate<MediaCodecInfo> defaultAllowedPredicate =
       new Predicate<MediaCodecInfo>() {
-        private String[] prefixWhitelist =
-            Arrays.copyOf(MediaCodecUtils.SOFTWARE_IMPLEMENTATION_PREFIXES,
-                MediaCodecUtils.SOFTWARE_IMPLEMENTATION_PREFIXES.length);
-
         @Override
         public boolean test(MediaCodecInfo arg) {
-          final String name = arg.getName();
-          for (String prefix : prefixWhitelist) {
-            if (name.startsWith(prefix)) {
-              return true;
-            }
-          }
-          return false;
+          return MediaCodecUtils.isSoftwareOnly(arg);
         }
       };
 
@@ -43,7 +33,7 @@ public class PlatformSoftwareVideoDecoderFactory extends MediaCodecVideoDecoderF
    * @param sharedContext The textures generated will be accessible from this context. May be null,
    *                      this disables texture support.
    */
-  public PlatformSoftwareVideoDecoderFactory( EglBase.Context sharedContext) {
+  public PlatformSoftwareVideoDecoderFactory(@Nullable EglBase.Context sharedContext) {
     super(sharedContext, defaultAllowedPredicate);
   }
 }

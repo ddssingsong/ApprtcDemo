@@ -1,5 +1,5 @@
 /*
- *  Copyright 2017 The WebRTC project authors. All Rights Reserved.
+ *  Copyright 2020 The WebRTC project authors. All Rights Reserved.
  *
  *  Use of this source code is governed by a BSD-style license
  *  that can be found in the LICENSE file in the root of the source
@@ -8,7 +8,10 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-// TODO(deadbeef): Remove this file when clients are updated to new include
-// path.
+package org.webrtc;
 
-#include "sdk/android/src/jni/pc/android_network_monitor.h"
+import android.content.Context;
+
+public interface NetworkChangeDetectorFactory {
+  public NetworkChangeDetector create(NetworkChangeDetector.Observer observer, Context context);
+}

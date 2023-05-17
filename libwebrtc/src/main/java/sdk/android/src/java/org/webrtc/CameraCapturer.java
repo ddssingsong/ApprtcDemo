@@ -13,8 +13,9 @@ package org.webrtc;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
-
+import androidx.annotation.Nullable;
 import java.util.Arrays;
+import java.util.List;
 
 @SuppressWarnings("deprecation")
 abstract class CameraCapturer implements CameraVideoCapturer {
@@ -30,10 +31,10 @@ abstract class CameraCapturer implements CameraVideoCapturer {
   private final static int OPEN_CAMERA_TIMEOUT = 10000;
 
   private final CameraEnumerator cameraEnumerator;
-   private final CameraEventsHandler eventsHandler;
+  private final CameraEventsHandler eventsHandler;
   private final Handler uiThreadHandler;
 
-  
+  @Nullable
   private final CameraSession.CreateSessionCallback createSessionCallback =
       new CameraSession.CreateSessionCallback() {
         @Override
@@ -56,8 +57,10 @@ abstract class CameraCapturer implements CameraVideoCapturer {
                 switchEventsHandler = null;
               }
             } else if (switchState == SwitchState.PENDING) {
+              String selectedCameraName = pendingCameraName;
+              pendingCameraName = null;
               switchState = SwitchState.IDLE;
-              switchCameraInternal(switchEventsHandler);
+              switchCameraInternal(switchEventsHandler, selectedCameraName);
             }
           }
         }
@@ -96,7 +99,7 @@ abstract class CameraCapturer implements CameraVideoCapturer {
         }
       };
 
-  
+  @Nullable
   private final CameraSession.Events cameraSessionEventsHandler = new CameraSession.Events() {
     @Override
     public void onCameraOpening() {
@@ -175,26 +178,27 @@ abstract class CameraCapturer implements CameraVideoCapturer {
 
   // Initialized on initialize
   // -------------------------
-   private Handler cameraThreadHandler;
+  private Handler cameraThreadHandler;
   private Context applicationContext;
-  private org.webrtc.CapturerObserver capturerObserver;
-   private SurfaceTextureHelper surfaceHelper;
+  private CapturerObserver capturerObserver;
+  private SurfaceTextureHelper surfaceHelper;
 
   private final Object stateLock = new Object();
   private boolean sessionOpening; /* guarded by stateLock */
-   private CameraSession currentSession; /* guarded by stateLock */
+  @Nullable private CameraSession currentSession; /* guarded by stateLock */
   private String cameraName; /* guarded by stateLock */
+  private String pendingCameraName; /* guarded by stateLock */
   private int width; /* guarded by stateLock */
   private int height; /* guarded by stateLock */
   private int framerate; /* guarded by stateLock */
   private int openAttemptsRemaining; /* guarded by stateLock */
   private SwitchState switchState = SwitchState.IDLE; /* guarded by stateLock */
-   private CameraSwitchHandler switchEventsHandler; /* guarded by stateLock */
+  @Nullable private CameraSwitchHandler switchEventsHandler; /* guarded by stateLock */
   // Valid from onDone call until stopCapture, otherwise null.
-   private CameraStatistics cameraStatistics; /* guarded by stateLock */
+  @Nullable private CameraStatistics cameraStatistics; /* guarded by stateLock */
   private boolean firstFrameObserved; /* guarded by stateLock */
 
-  public CameraCapturer(String cameraName,  CameraEventsHandler eventsHandler,
+  public CameraCapturer(String cameraName, @Nullable CameraEventsHandler eventsHandler,
       CameraEnumerator cameraEnumerator) {
     if (eventsHandler == null) {
       eventsHandler = new CameraEventsHandler() {
@@ -216,27 +220,25 @@ abstract class CameraCapturer implements CameraVideoCapturer {
     this.eventsHandler = eventsHandler;
     this.cameraEnumerator = cameraEnumerator;
     this.cameraName = cameraName;
+    List<String> deviceNames = Arrays.asList(cameraEnumerator.getDeviceNames());
     uiThreadHandler = new Handler(Looper.getMainLooper());
 
-    final String[] deviceNames = cameraEnumerator.getDeviceNames();
-
-    if (deviceNames.length == 0) {
+    if (deviceNames.isEmpty()) {
       throw new RuntimeException("No cameras attached.");
     }
-    if (!Arrays.asList(deviceNames).contains(this.cameraName)) {
+    if (!deviceNames.contains(this.cameraName)) {
       throw new IllegalArgumentException(
           "Camera name " + this.cameraName + " does not match any known camera device.");
     }
   }
 
   @Override
-  public void initialize( SurfaceTextureHelper surfaceTextureHelper,
-      Context applicationContext, org.webrtc.CapturerObserver capturerObserver) {
+  public void initialize(SurfaceTextureHelper surfaceTextureHelper, Context applicationContext,
+      CapturerObserver capturerObserver) {
     this.applicationContext = applicationContext;
     this.capturerObserver = capturerObserver;
     this.surfaceHelper = surfaceTextureHelper;
-    this.cameraThreadHandler =
-        surfaceTextureHelper == null ? null : surfaceTextureHelper.getHandler();
+    this.cameraThreadHandler = surfaceTextureHelper.getHandler();
   }
 
   @Override
@@ -331,7 +333,27 @@ abstract class CameraCapturer implements CameraVideoCapturer {
     cameraThreadHandler.post(new Runnable() {
       @Override
       public void run() {
-        switchCameraInternal(switchEventsHandler);
+        List<String> deviceNames = Arrays.asList(cameraEnumerator.getDeviceNames());
+
+        if (deviceNames.size() < 2) {
+          reportCameraSwitchError("No camera to switch to.", switchEventsHandler);
+          return;
+        }
+
+        int cameraNameIndex = deviceNames.indexOf(cameraName);
+        String cameraName = deviceNames.get((cameraNameIndex + 1) % deviceNames.size());
+        switchCameraInternal(switchEventsHandler, cameraName);
+      }
+    });
+  }
+
+  @Override
+  public void switchCamera(final CameraSwitchHandler switchEventsHandler, final String cameraName) {
+    Logging.d(TAG, "switchCamera");
+    cameraThreadHandler.post(new Runnable() {
+      @Override
+      public void run() {
+        switchCameraInternal(switchEventsHandler, cameraName);
       }
     });
   }
@@ -358,22 +380,21 @@ abstract class CameraCapturer implements CameraVideoCapturer {
   }
 
   private void reportCameraSwitchError(
-      String error,  CameraSwitchHandler switchEventsHandler) {
+      String error, @Nullable CameraSwitchHandler switchEventsHandler) {
     Logging.e(TAG, error);
     if (switchEventsHandler != null) {
       switchEventsHandler.onCameraSwitchError(error);
     }
   }
 
-  private void switchCameraInternal( final CameraSwitchHandler switchEventsHandler) {
+  private void switchCameraInternal(
+      @Nullable final CameraSwitchHandler switchEventsHandler, final String selectedCameraName) {
     Logging.d(TAG, "switchCamera internal");
+    List<String> deviceNames = Arrays.asList(cameraEnumerator.getDeviceNames());
 
-    final String[] deviceNames = cameraEnumerator.getDeviceNames();
-
-    if (deviceNames.length < 2) {
-      if (switchEventsHandler != null) {
-        switchEventsHandler.onCameraSwitchError("No camera to switch to.");
-      }
+    if (!deviceNames.contains(selectedCameraName)) {
+      reportCameraSwitchError("Attempted to switch to unknown camera device " + selectedCameraName,
+          switchEventsHandler);
       return;
     }
 
@@ -390,6 +411,7 @@ abstract class CameraCapturer implements CameraVideoCapturer {
       this.switchEventsHandler = switchEventsHandler;
       if (sessionOpening) {
         switchState = SwitchState.PENDING;
+        pendingCameraName = selectedCameraName;
         return;
       } else {
         switchState = SwitchState.IN_PROGRESS;
@@ -407,8 +429,7 @@ abstract class CameraCapturer implements CameraVideoCapturer {
       });
       currentSession = null;
 
-      int cameraNameIndex = Arrays.asList(deviceNames).indexOf(cameraName);
-      cameraName = deviceNames[(cameraNameIndex + 1) % deviceNames.length];
+      cameraName = selectedCameraName;
 
       sessionOpening = true;
       openAttemptsRemaining = 1;

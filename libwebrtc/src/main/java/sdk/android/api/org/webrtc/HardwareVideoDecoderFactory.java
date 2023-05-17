@@ -11,25 +11,16 @@
 package org.webrtc;
 
 import android.media.MediaCodecInfo;
-
+import androidx.annotation.Nullable;
 import java.util.Arrays;
 
 /** Factory for Android hardware VideoDecoders. */
 public class HardwareVideoDecoderFactory extends MediaCodecVideoDecoderFactory {
   private final static Predicate<MediaCodecInfo> defaultAllowedPredicate =
       new Predicate<MediaCodecInfo>() {
-        private String[] prefixBlacklist =
-            Arrays.copyOf(MediaCodecUtils.SOFTWARE_IMPLEMENTATION_PREFIXES,
-                MediaCodecUtils.SOFTWARE_IMPLEMENTATION_PREFIXES.length);
         @Override
         public boolean test(MediaCodecInfo arg) {
-          final String name = arg.getName();
-          for (String prefix : prefixBlacklist) {
-            if (name.startsWith(prefix)) {
-              return false;
-            }
-          }
-          return true;
+          return MediaCodecUtils.isHardwareAccelerated(arg);
         }
       };
 
@@ -45,7 +36,7 @@ public class HardwareVideoDecoderFactory extends MediaCodecVideoDecoderFactory {
    * @param sharedContext The textures generated will be accessible from this context. May be null,
    *                      this disables texture support.
    */
-  public HardwareVideoDecoderFactory( EglBase.Context sharedContext) {
+  public HardwareVideoDecoderFactory(@Nullable EglBase.Context sharedContext) {
     this(sharedContext, /* codecAllowedPredicate= */ null);
   }
 
@@ -57,8 +48,8 @@ public class HardwareVideoDecoderFactory extends MediaCodecVideoDecoderFactory {
    * @param codecAllowedPredicate predicate to filter codecs. It is combined with the default
    *                              predicate that only allows hardware codecs.
    */
-  public HardwareVideoDecoderFactory( EglBase.Context sharedContext,
-       Predicate<MediaCodecInfo> codecAllowedPredicate) {
+  public HardwareVideoDecoderFactory(@Nullable EglBase.Context sharedContext,
+      @Nullable Predicate<MediaCodecInfo> codecAllowedPredicate) {
     super(sharedContext,
         (codecAllowedPredicate == null ? defaultAllowedPredicate
                                        : codecAllowedPredicate.and(defaultAllowedPredicate)));

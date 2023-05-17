@@ -9,7 +9,7 @@
  */
 
 #include "api/dtmf_sender_interface.h"
-#include "sdk/android/generated_peerconnection_jni/jni/DtmfSender_jni.h"
+#include "sdk/android/generated_peerconnection_jni/DtmfSender_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
 #include "sdk/android/src/jni/jni_helpers.h"
 
@@ -39,8 +39,7 @@ static ScopedJavaLocalRef<jstring> JNI_DtmfSender_Tones(
       reinterpret_cast<DtmfSenderInterface*>(j_dtmf_sender_pointer)->tones());
 }
 
-static jint JNI_DtmfSender_Duration(JNIEnv* jni,
-                                    jlong j_dtmf_sender_pointer) {
+static jint JNI_DtmfSender_Duration(JNIEnv* jni, jlong j_dtmf_sender_pointer) {
   return reinterpret_cast<DtmfSenderInterface*>(j_dtmf_sender_pointer)
       ->duration();
 }

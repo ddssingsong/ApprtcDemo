@@ -9,7 +9,7 @@
  */
 
 #include "rtc_base/ref_count.h"
-#include "sdk/android/generated_base_jni/jni/JniCommon_jni.h"
+#include "sdk/android/generated_base_jni/JniCommon_jni.h"
 #include "sdk/android/src/jni/jni_helpers.h"
 
 namespace webrtc {
@@ -27,9 +27,8 @@ static void JNI_JniCommon_ReleaseRef(JNIEnv* jni,
       ->Release();
 }
 
-static ScopedJavaLocalRef<jobject> JNI_JniCommon_AllocateByteBuffer(
-    JNIEnv* jni,
-    jint size) {
+static ScopedJavaLocalRef<jobject> JNI_JniCommon_AllocateByteBuffer(JNIEnv* jni,
+                                                                    jint size) {
   void* new_data = ::operator new(size);
   return NewDirectByteBuffer(jni, new_data, size);
 }

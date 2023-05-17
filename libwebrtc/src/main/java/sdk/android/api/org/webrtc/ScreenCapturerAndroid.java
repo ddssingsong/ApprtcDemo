@@ -10,7 +10,6 @@
 
 package org.webrtc;
 
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -18,8 +17,8 @@ import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
-;
 import android.view.Surface;
+import androidx.annotation.Nullable;
 
 /**
  * An implementation of VideoCapturer to capture the screen content as a video stream.
@@ -31,10 +30,7 @@ import android.view.Surface;
  * place on the HandlerThread of the given {@code SurfaceTextureHelper}. When done with each frame,
  * the native code returns the buffer to the  {@code SurfaceTextureHelper} to be used for new
  * frames. At any time, at most one frame is being processed.
- *
- * @note This class is only supported on Android Lollipop and above.
  */
-@TargetApi(21)
 public class ScreenCapturerAndroid implements VideoCapturer, VideoSink {
   private static final int DISPLAY_FLAGS =
       DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC | DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION;
@@ -46,13 +42,13 @@ public class ScreenCapturerAndroid implements VideoCapturer, VideoSink {
 
   private int width;
   private int height;
-   private VirtualDisplay virtualDisplay;
-   private SurfaceTextureHelper surfaceTextureHelper;
-   private CapturerObserver capturerObserver;
+  @Nullable private VirtualDisplay virtualDisplay;
+  @Nullable private SurfaceTextureHelper surfaceTextureHelper;
+  @Nullable private CapturerObserver capturerObserver;
   private long numCapturedFrames;
-   private MediaProjection mediaProjection;
+  @Nullable private MediaProjection mediaProjection;
   private boolean isDisposed;
-   private MediaProjectionManager mediaProjectionManager;
+  @Nullable private MediaProjectionManager mediaProjectionManager;
 
   /**
    * Constructs a new Screen Capturer.
@@ -73,6 +69,11 @@ public class ScreenCapturerAndroid implements VideoCapturer, VideoSink {
     if (isDisposed) {
       throw new RuntimeException("capturer is disposed.");
     }
+  }
+
+  @Nullable
+  public MediaProjection getMediaProjection() {
+    return mediaProjection;
   }
 
   @Override

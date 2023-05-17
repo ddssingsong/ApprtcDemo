@@ -14,10 +14,10 @@
 #include <vector>
 
 #include "rtc_base/string_encode.h"
-#include "sdk/android/generated_external_classes_jni/jni/BigInteger_jni.h"
-#include "sdk/android/generated_peerconnection_jni/jni/RTCStatsCollectorCallback_jni.h"
-#include "sdk/android/generated_peerconnection_jni/jni/RTCStatsReport_jni.h"
-#include "sdk/android/generated_peerconnection_jni/jni/RTCStats_jni.h"
+#include "sdk/android/generated_external_classes_jni/BigInteger_jni.h"
+#include "sdk/android/generated_peerconnection_jni/RTCStatsCollectorCallback_jni.h"
+#include "sdk/android/generated_peerconnection_jni/RTCStatsReport_jni.h"
+#include "sdk/android/generated_peerconnection_jni/RTCStats_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
 
 namespace webrtc {
@@ -94,8 +94,25 @@ ScopedJavaLocalRef<jobject> MemberToJava(
     case RTCStatsMemberInterface::kSequenceString:
       return NativeToJavaStringArray(
           env, *member.cast_to<RTCStatsMember<std::vector<std::string>>>());
+
+    case RTCStatsMemberInterface::kMapStringUint64:
+      return NativeToJavaMap(
+          env,
+          *member.cast_to<RTCStatsMember<std::map<std::string, uint64_t>>>(),
+          [](JNIEnv* env, const auto& entry) {
+            return std::make_pair(NativeToJavaString(env, entry.first),
+                                  NativeToJavaBigInteger(env, entry.second));
+          });
+
+    case RTCStatsMemberInterface::kMapStringDouble:
+      return NativeToJavaMap(
+          env, *member.cast_to<RTCStatsMember<std::map<std::string, double>>>(),
+          [](JNIEnv* env, const auto& entry) {
+            return std::make_pair(NativeToJavaString(env, entry.first),
+                                  NativeToJavaDouble(env, entry.second));
+          });
   }
-  RTC_NOTREACHED();
+  RTC_DCHECK_NOTREACHED();
   return nullptr;
 }
 
@@ -109,7 +126,7 @@ ScopedJavaLocalRef<jobject> NativeToJavaRtcStats(JNIEnv* env,
                 MemberToJava(env, *member));
   }
   return Java_RTCStats_create(
-      env, stats.timestamp_us(), NativeToJavaString(env, stats.type()),
+      env, stats.timestamp().us(), NativeToJavaString(env, stats.type()),
       NativeToJavaString(env, stats.id()), builder.GetJavaMap());
 }
 
@@ -121,7 +138,7 @@ ScopedJavaLocalRef<jobject> NativeToJavaRtcStatsReport(
         return std::make_pair(NativeToJavaString(env, stats.id()),
                               NativeToJavaRtcStats(env, stats));
       });
-  return Java_RTCStatsReport_create(env, report->timestamp_us(), j_stats_map);
+  return Java_RTCStatsReport_create(env, report->timestamp().us(), j_stats_map);
 }
 
 }  // namespace

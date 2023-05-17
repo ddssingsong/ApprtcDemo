@@ -10,14 +10,13 @@
 
 package org.webrtc;
 
-import android.annotation.TargetApi;
 import android.content.Context;
 import android.hardware.camera2.CameraManager;
+import androidx.annotation.Nullable;
 
-@TargetApi(21)
 public class Camera2Capturer extends CameraCapturer {
   private final Context context;
-   private final CameraManager cameraManager;
+  @Nullable private final CameraManager cameraManager;
 
   public Camera2Capturer(Context context, String cameraName, CameraEventsHandler eventsHandler) {
     super(cameraName, eventsHandler, new Camera2Enumerator(context));

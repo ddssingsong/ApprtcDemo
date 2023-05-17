@@ -10,51 +10,44 @@
 
 package org.webrtc;
 
-;
-import java.util.ArrayList;
-import java.util.HashMap;
+import androidx.annotation.Nullable;
+import java.util.Arrays;
 import java.util.List;
 
 public class SoftwareVideoDecoderFactory implements VideoDecoderFactory {
-  @Deprecated
+  private static final String TAG = "SoftwareVideoDecoderFactory";
 
-  @Override
-  public VideoDecoder createDecoder(String codecType) {
-    return createDecoder(new VideoCodecInfo(codecType, new HashMap<>()));
+  private final long nativeFactory;
+
+  public SoftwareVideoDecoderFactory() {
+    this.nativeFactory = nativeCreateFactory();
   }
 
-
+  @Nullable
   @Override
-  public VideoDecoder createDecoder(VideoCodecInfo codecType) {
-    if (codecType.getName().equalsIgnoreCase("VP8")) {
-      return new LibvpxVp8Decoder();
-    }
-    if (codecType.getName().equalsIgnoreCase("VP9") && LibvpxVp9Decoder.nativeIsSupported()) {
-      return new LibvpxVp9Decoder();
-    }
-	if (codecType.getName().equalsIgnoreCase("H264") && H264Decoder.nativeIsSupported()) {
-      return new H264Decoder();
+  public VideoDecoder createDecoder(VideoCodecInfo info) {
+    long nativeDecoder = nativeCreateDecoder(nativeFactory, info);
+    if (nativeDecoder == 0) {
+      Logging.w(TAG, "Trying to create decoder for unsupported format. " + info);
+      return null;
     }
 
-    return null;
+    return new WrappedNativeVideoDecoder() {
+      @Override
+      public long createNativeVideoDecoder() {
+        return nativeDecoder;
+      }
+    };
   }
 
   @Override
   public VideoCodecInfo[] getSupportedCodecs() {
-    return supportedCodecs();
+    return nativeGetSupportedCodecs(nativeFactory).toArray(new VideoCodecInfo[0]);
   }
 
-  static VideoCodecInfo[] supportedCodecs() {
-    List<VideoCodecInfo> codecs = new ArrayList<VideoCodecInfo>();
+  private static native long nativeCreateFactory();
 
-    codecs.add(new VideoCodecInfo("VP8", new HashMap<>()));
-    if (LibvpxVp9Decoder.nativeIsSupported()) {
-      codecs.add(new VideoCodecInfo("VP9", new HashMap<>()));
-    }
-	if (H264Decoder.nativeIsSupported()) {
-      codecs.add(new VideoCodecInfo("H264", new HashMap<>()));
-	}
+  private static native long nativeCreateDecoder(long factory, VideoCodecInfo videoCodecInfo);
 
-    return codecs.toArray(new VideoCodecInfo[codecs.size()]);
-  }
+  private static native List<VideoCodecInfo> nativeGetSupportedCodecs(long factory);
 }

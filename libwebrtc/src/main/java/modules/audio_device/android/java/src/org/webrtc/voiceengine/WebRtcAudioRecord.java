@@ -15,13 +15,13 @@ import android.media.AudioRecord;
 import android.media.MediaRecorder.AudioSource;
 import android.os.Build;
 import android.os.Process;
-
-import org.webrtc.Logging;
-import org.webrtc.ThreadUtils;
-
+import androidx.annotation.Nullable;
+import java.lang.System;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
+import org.webrtc.Logging;
+import org.webrtc.ThreadUtils;
 
 public class WebRtcAudioRecord {
   private static final boolean DEBUG = false;
@@ -52,12 +52,12 @@ public class WebRtcAudioRecord {
 
   private final long nativeAudioRecord;
 
-  private  WebRtcAudioEffects effects;
+  private @Nullable WebRtcAudioEffects effects;
 
   private ByteBuffer byteBuffer;
 
-  private  AudioRecord audioRecord;
-  private  AudioRecordThread audioThread;
+  private @Nullable AudioRecord audioRecord;
+  private @Nullable AudioRecordThread audioThread;
 
   private static volatile boolean microphoneMute;
   private byte[] emptyBytes;
@@ -74,7 +74,7 @@ public class WebRtcAudioRecord {
     void onWebRtcAudioRecordError(String errorMessage);
   }
 
-  private static  WebRtcAudioRecordErrorCallback errorCallback;
+  private static @Nullable WebRtcAudioRecordErrorCallback errorCallback;
 
   public static void setErrorCallback(WebRtcAudioRecordErrorCallback errorCallback) {
     Logging.d(TAG, "Set error callback");
@@ -83,7 +83,7 @@ public class WebRtcAudioRecord {
 
   /**
    * Contains audio sample information. Object is passed using {@link
-   * WebRtcAudioRecord.WebRtcAudioRecordSamplesReadyCallback}
+   * WebRtcAudioRecordSamplesReadyCallback}
    */
   public static class AudioSamples {
     /** See {@link AudioRecord#getAudioFormat()} */
@@ -124,7 +124,7 @@ public class WebRtcAudioRecord {
     void onWebRtcAudioRecordSamplesReady(AudioSamples samples);
   }
 
-  private static  WebRtcAudioRecordSamplesReadyCallback audioSamplesReadyCallback;
+  private static @Nullable WebRtcAudioRecordSamplesReadyCallback audioSamplesReadyCallback;
 
   public static void setOnAudioSamplesReady(WebRtcAudioRecordSamplesReadyCallback callback) {
     audioSamplesReadyCallback = callback;
@@ -366,7 +366,7 @@ public class WebRtcAudioRecord {
     return AudioSource.VOICE_COMMUNICATION;
   }
 
-  // Sets all recorded samples to zero if |mute| is true, i.e., ensures that
+  // Sets all recorded samples to zero if `mute` is true, i.e., ensures that
   // the microphone is muted.
   public static void setMicrophoneMute(boolean mute) {
     Logging.w(TAG, "setMicrophoneMute(" + mute + ")");

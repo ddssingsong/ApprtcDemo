@@ -10,13 +10,17 @@
 
 package org.webrtc;
 
+import androidx.annotation.Nullable;
+import java.util.List;
+import org.webrtc.MediaStreamTrack;
+
 /** Java wrapper for a C++ RtpSenderInterface. */
 public class RtpSender {
   private long nativeRtpSender;
 
-   private MediaStreamTrack cachedTrack;
+  @Nullable private MediaStreamTrack cachedTrack;
   private boolean ownsTrack = true;
-  private final  DtmfSender dtmfSender;
+  private final @Nullable DtmfSender dtmfSender;
 
   @CalledByNative
   public RtpSender(long nativeRtpSender) {
@@ -24,8 +28,12 @@ public class RtpSender {
     long nativeTrack = nativeGetTrack(nativeRtpSender);
     cachedTrack = MediaStreamTrack.createMediaStreamTrack(nativeTrack);
 
-    long nativeDtmfSender = nativeGetDtmfSender(nativeRtpSender);
-    dtmfSender = (nativeDtmfSender != 0) ? new DtmfSender(nativeDtmfSender) : null;
+    if (nativeGetMediaType(nativeRtpSender).equalsIgnoreCase(MediaStreamTrack.AUDIO_TRACK_KIND)) {
+      long nativeDtmfSender = nativeGetDtmfSender(nativeRtpSender);
+      dtmfSender = (nativeDtmfSender != 0) ? new DtmfSender(nativeDtmfSender) : null;
+    } else {
+      dtmfSender = null;
+    }
   }
 
   /**
@@ -36,13 +44,13 @@ public class RtpSender {
    *
    * @param takeOwnership If true, the RtpSender takes ownership of the track
    *                      from the caller, and will auto-dispose of it when no
-   *                      longer needed. |takeOwnership| should only be used if
+   *                      longer needed. `takeOwnership` should only be used if
    *                      the caller owns the track; it is not appropriate when
    *                      the track is owned by, for example, another RtpSender
    *                      or a MediaStream.
    * @return              true on success and false on failure.
    */
-  public boolean setTrack( MediaStreamTrack track, boolean takeOwnership) {
+  public boolean setTrack(@Nullable MediaStreamTrack track, boolean takeOwnership) {
     checkRtpSenderExists();
     if (!nativeSetTrack(nativeRtpSender, (track == null) ? 0 : track.getNativeMediaStreamTrack())) {
       return false;
@@ -55,9 +63,19 @@ public class RtpSender {
     return true;
   }
 
-  
+  @Nullable
   public MediaStreamTrack track() {
     return cachedTrack;
+  }
+
+  public void setStreams(List<String> streamIds) {
+    checkRtpSenderExists();
+    nativeSetStreams(nativeRtpSender, streamIds);
+  }
+
+  public List<String> getStreams() {
+    checkRtpSenderExists();
+    return nativeGetStreams(nativeRtpSender);
   }
 
   public boolean setParameters(RtpParameters parameters) {
@@ -75,7 +93,7 @@ public class RtpSender {
     return nativeGetId(nativeRtpSender);
   }
 
-  
+  @Nullable
   public DtmfSender dtmf() {
     return dtmfSender;
   }
@@ -115,6 +133,10 @@ public class RtpSender {
   // Will be released in dispose() or setTrack().
   private static native long nativeGetTrack(long rtpSender);
 
+  private static native void nativeSetStreams(long rtpSender, List<String> streamIds);
+
+  private static native List<String> nativeGetStreams(long rtpSender);
+
   // This should increment the reference count of the DTMF sender.
   // Will be released in dispose().
   private static native long nativeGetDtmfSender(long rtpSender);
@@ -126,4 +148,6 @@ public class RtpSender {
   private static native String nativeGetId(long rtpSender);
 
   private static native void nativeSetFrameEncryptor(long rtpSender, long nativeFrameEncryptor);
+
+  private static native String nativeGetMediaType(long rtpSender);
 };

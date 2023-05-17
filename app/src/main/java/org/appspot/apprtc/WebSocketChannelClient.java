@@ -11,8 +11,8 @@
 package org.appspot.apprtc;
 
 import android.os.Handler;
-;
 import android.util.Log;
+import androidx.annotation.Nullable;
 import de.tavendo.autobahn.WebSocket.WebSocketConnectionObserver;
 import de.tavendo.autobahn.WebSocketConnection;
 import de.tavendo.autobahn.WebSocketException;
@@ -40,9 +40,9 @@ public class WebSocketChannelClient {
   private WebSocketConnection ws;
   private String wsServerUrl;
   private String postServerUrl;
-
+  @Nullable
   private String roomID;
-
+  @Nullable
   private String clientID;
   private WebSocketConnectionState state;
   // Do not remove this member variable. If this is removed, the observer gets garbage collected and

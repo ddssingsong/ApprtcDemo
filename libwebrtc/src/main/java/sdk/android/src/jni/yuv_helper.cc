@@ -10,7 +10,7 @@
 
 #include <jni.h>
 
-#include "sdk/android/generated_video_jni/jni/YuvHelper_jni.h"
+#include "sdk/android/generated_video_jni/YuvHelper_jni.h"
 #include "sdk/android/src/jni/jni_helpers.h"
 #include "third_party/libyuv/include/libyuv/convert.h"
 #include "third_party/libyuv/include/libyuv/planar_functions.h"
@@ -128,6 +128,30 @@ void JNI_YuvHelper_I420Rotate(JNIEnv* jni,
                      src_stride_v, dst_y, dst_stride_y, dst_u, dst_stride_u,
                      dst_v, dst_stride_v, src_width, src_height,
                      static_cast<libyuv::RotationMode>(rotation_mode));
+}
+
+void JNI_YuvHelper_ABGRToI420(JNIEnv* jni,
+                              const JavaParamRef<jobject>& j_src,
+                              jint src_stride,
+                              const JavaParamRef<jobject>& j_dst_y,
+                              jint dst_stride_y,
+                              const JavaParamRef<jobject>& j_dst_u,
+                              jint dst_stride_u,
+                              const JavaParamRef<jobject>& j_dst_v,
+                              jint dst_stride_v,
+                              jint src_width,
+                              jint src_height) {
+  const uint8_t* src =
+      static_cast<const uint8_t*>(jni->GetDirectBufferAddress(j_src.obj()));
+  uint8_t* dst_y =
+      static_cast<uint8_t*>(jni->GetDirectBufferAddress(j_dst_y.obj()));
+  uint8_t* dst_u =
+      static_cast<uint8_t*>(jni->GetDirectBufferAddress(j_dst_u.obj()));
+  uint8_t* dst_v =
+      static_cast<uint8_t*>(jni->GetDirectBufferAddress(j_dst_v.obj()));
+
+  libyuv::ABGRToI420(src, src_stride, dst_y, dst_stride_y, dst_u, dst_stride_u,
+                     dst_v, dst_stride_v, src_width, src_height);
 }
 
 }  // namespace jni

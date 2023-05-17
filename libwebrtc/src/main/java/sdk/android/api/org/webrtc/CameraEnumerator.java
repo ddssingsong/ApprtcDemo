@@ -21,5 +21,5 @@ public interface CameraEnumerator {
   public List<CaptureFormat> getSupportedFormats(String deviceName);
 
   public CameraVideoCapturer createCapturer(
-      String deviceName, CameraVideoCapturer.CameraEventsHandler eventsHandler);
+          String deviceName, CameraVideoCapturer.CameraEventsHandler eventsHandler);
 }

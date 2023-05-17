@@ -1,5 +1,5 @@
 /*
- *  Copyright 2017 The WebRTC project authors. All Rights Reserved.
+ *  Copyright 2021 The WebRTC project authors. All Rights Reserved.
  *
  *  Use of this source code is governed by a BSD-style license
  *  that can be found in the LICENSE file in the root of the source
@@ -8,17 +8,18 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-// Deprecated: use sdk/android/native_api/jni/class_loader.h instead.
+#include <jni.h>
 
-#ifndef SDK_ANDROID_SRC_JNI_CLASS_LOADER_H_
-#define SDK_ANDROID_SRC_JNI_CLASS_LOADER_H_
-
-#include "sdk/android/native_api/jni/class_loader.h"
+#include "modules/video_coding/codecs/av1/dav1d_decoder.h"
+#include "sdk/android/generated_dav1d_jni/Dav1dDecoder_jni.h"
+#include "sdk/android/src/jni/jni_helpers.h"
 
 namespace webrtc {
 namespace jni {
-using ::webrtc::InitClassLoader;
+
+static jlong JNI_Dav1dDecoder_CreateDecoder(JNIEnv* jni) {
+  return jlongFromPointer(webrtc::CreateDav1dDecoder().release());
+}
+
 }  // namespace jni
 }  // namespace webrtc
-
-#endif  // SDK_ANDROID_SRC_JNI_CLASS_LOADER_H_

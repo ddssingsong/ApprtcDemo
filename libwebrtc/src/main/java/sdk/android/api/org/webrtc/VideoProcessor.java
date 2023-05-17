@@ -10,7 +10,7 @@
 
 package org.webrtc;
 
-;
+import androidx.annotation.Nullable;
 
 /**
  * Lightweight abstraction for an object that can receive video frames, process them, and pass them
@@ -54,16 +54,16 @@ public interface VideoProcessor extends CapturerObserver {
 
   /**
    * Set the sink that receives the output from this processor. Null can be passed in to unregister
-   * a sink. After this call returns, no frames should be delivered to an unregistered sink.
+   * a sink.
    */
-  void setSink( VideoSink sink);
+  void setSink(@Nullable VideoSink sink);
 
   /**
    * Applies the frame adaptation parameters to a frame. Returns null if the frame is meant to be
    * dropped. Returns a new frame. The caller is responsible for releasing the returned frame.
    */
-  public static  VideoFrame applyFrameAdaptationParameters(
-      VideoFrame frame, FrameAdaptationParameters parameters) {
+  public static @Nullable VideoFrame applyFrameAdaptationParameters(
+          VideoFrame frame, FrameAdaptationParameters parameters) {
     if (parameters.drop) {
       return null;
     }

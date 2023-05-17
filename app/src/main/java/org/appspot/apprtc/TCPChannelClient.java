@@ -10,8 +10,8 @@
 
 package org.appspot.apprtc;
 
-;
 import android.util.Log;
+import androidx.annotation.Nullable;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -124,9 +124,9 @@ public class TCPChannelClient {
   private abstract class TCPSocket extends Thread {
     // Lock for editing out and rawSocket
     protected final Object rawSocketLock;
-
+    @Nullable
     private PrintWriter out;
-
+    @Nullable
     private Socket rawSocket;
 
     /**
@@ -134,7 +134,7 @@ public class TCPChannelClient {
      *
      * @return Socket connection, null if connection failed.
      */
-
+    @Nullable
     public abstract Socket connect();
 
     /** Returns true if sockets is a server rawSocket. */
@@ -267,7 +267,7 @@ public class TCPChannelClient {
 
   private class TCPSocketServer extends TCPSocket {
     // Server socket is also guarded by rawSocketLock.
-
+    @Nullable
     private ServerSocket serverSocket;
 
     final private InetAddress address;
@@ -279,7 +279,7 @@ public class TCPChannelClient {
     }
 
     /** Opens a listening socket and waits for a connection. */
-
+    @Nullable
     @Override
     public Socket connect() {
       Log.d(TAG, "Listening on [" + address.getHostAddress() + "]:" + Integer.toString(port));
@@ -341,7 +341,7 @@ public class TCPChannelClient {
     }
 
     /** Connects to the peer. */
-
+    @Nullable
     @Override
     public Socket connect() {
       Log.d(TAG, "Connecting to [" + address.getHostAddress() + "]:" + Integer.toString(port));

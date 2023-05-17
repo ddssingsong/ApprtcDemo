@@ -17,12 +17,11 @@ import android.content.IntentFilter;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.SystemClock;
-;
 import android.util.Log;
+import androidx.annotation.Nullable;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
@@ -74,7 +73,6 @@ import java.util.concurrent.TimeUnit;
  *      correct value, and then returns to back to correct reading.  Both when
  *      jumping up and back down we might create faulty CPU load readings.
  */
-@TargetApi(Build.VERSION_CODES.KITKAT)
 class CpuMonitor {
   private static final String TAG = "CpuMonitor";
   private static final int MOVING_AVERAGE_SAMPLES = 5;
@@ -92,7 +90,7 @@ class CpuMonitor {
   // CPU frequency in percentage from maximum.
   private final MovingAverage frequencyScale;
 
-
+  @Nullable
   private ScheduledExecutorService executor;
   private long lastStatLogTimeMs;
   private long[] cpuFreqMax;
@@ -103,7 +101,7 @@ class CpuMonitor {
   private String[] maxPath;
   private String[] curPath;
   private double[] curFreqScales;
-
+  @Nullable
   private ProcStat lastProcStat;
 
   private static class ProcStat {
@@ -160,8 +158,7 @@ class CpuMonitor {
   }
 
   public static boolean isSupported() {
-    return Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT
-        && Build.VERSION.SDK_INT < Build.VERSION_CODES.N;
+    return Build.VERSION.SDK_INT < Build.VERSION_CODES.N;
   }
 
   public CpuMonitor(Context context) {
@@ -488,7 +485,7 @@ class CpuMonitor {
    * of /proc/stat.
    */
   @SuppressWarnings("StringSplitter")
-  private  ProcStat readProcStat() {
+  private @Nullable ProcStat readProcStat() {
     long userTime = 0;
     long systemTime = 0;
     long idleTime = 0;

@@ -12,6 +12,7 @@
 #define SDK_ANDROID_SRC_JNI_VIDEO_ENCODER_FACTORY_WRAPPER_H_
 
 #include <jni.h>
+
 #include <vector>
 
 #include "api/video_codecs/sdp_video_format.h"
@@ -35,11 +36,14 @@ class VideoEncoderFactoryWrapper : public VideoEncoderFactory {
   // Returns a list of supported codecs in order of preference.
   std::vector<SdpVideoFormat> GetSupportedFormats() const override;
 
-  CodecInfo QueryVideoEncoder(const SdpVideoFormat& format) const override;
+  std::vector<SdpVideoFormat> GetImplementations() const override;
+
+  std::unique_ptr<EncoderSelectorInterface> GetEncoderSelector() const override;
 
  private:
   const ScopedJavaGlobalRef<jobject> encoder_factory_;
   std::vector<SdpVideoFormat> supported_formats_;
+  std::vector<SdpVideoFormat> implementations_;
 };
 
 }  // namespace jni

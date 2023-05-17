@@ -34,6 +34,9 @@ void JavaToNativeRTCConfiguration(
 rtc::KeyType GetRtcConfigKeyType(JNIEnv* env,
                                  const JavaRef<jobject>& j_rtc_config);
 
+ScopedJavaLocalRef<jobject> NativeToJavaAdapterType(JNIEnv* env,
+                                                    int adapterType);
+
 // Adapter between the C++ PeerConnectionObserver interface and the Java
 // PeerConnection.Observer interface.  Wraps an instance of the Java interface
 // and dispatches C++ callbacks to Java.
@@ -45,17 +48,27 @@ class PeerConnectionObserverJni : public PeerConnectionObserver {
   // Implementation of PeerConnectionObserver interface, which propagates
   // the callbacks to the Java observer.
   void OnIceCandidate(const IceCandidateInterface* candidate) override;
+  void OnIceCandidateError(const std::string& address,
+                           int port,
+                           const std::string& url,
+                           int error_code,
+                           const std::string& error_text) override;
+
   void OnIceCandidatesRemoved(
       const std::vector<cricket::Candidate>& candidates) override;
   void OnSignalingChange(
       PeerConnectionInterface::SignalingState new_state) override;
   void OnIceConnectionChange(
       PeerConnectionInterface::IceConnectionState new_state) override;
+  void OnStandardizedIceConnectionChange(
+      PeerConnectionInterface::IceConnectionState new_state) override;
   void OnConnectionChange(
       PeerConnectionInterface::PeerConnectionState new_state) override;
   void OnIceConnectionReceivingChange(bool receiving) override;
   void OnIceGatheringChange(
       PeerConnectionInterface::IceGatheringState new_state) override;
+  void OnIceSelectedCandidatePairChanged(
+      const cricket::CandidatePairChangeEvent& event) override;
   void OnAddStream(rtc::scoped_refptr<MediaStreamInterface> stream) override;
   void OnRemoveStream(rtc::scoped_refptr<MediaStreamInterface> stream) override;
   void OnDataChannel(rtc::scoped_refptr<DataChannelInterface> channel) override;
@@ -65,6 +78,8 @@ class PeerConnectionObserverJni : public PeerConnectionObserver {
                       streams) override;
   void OnTrack(
       rtc::scoped_refptr<RtpTransceiverInterface> transceiver) override;
+  void OnRemoveTrack(
+      rtc::scoped_refptr<RtpReceiverInterface> receiver) override;
 
  private:
   typedef std::map<MediaStreamInterface*, JavaMediaStream>

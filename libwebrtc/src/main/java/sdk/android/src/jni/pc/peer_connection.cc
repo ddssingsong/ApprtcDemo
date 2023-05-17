@@ -32,16 +32,20 @@
 #include <string>
 #include <utility>
 
-#include "absl/memory/memory.h"
 #include "api/peer_connection_interface.h"
+#include "api/rtc_event_log_output_file.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/rtp_sender_interface.h"
 #include "api/rtp_transceiver_interface.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "sdk/android/generated_peerconnection_jni/jni/PeerConnection_jni.h"
+#include "rtc_base/numerics/safe_conversions.h"
+#include "sdk/android/generated_peerconnection_jni/CandidatePairChangeEvent_jni.h"
+#include "sdk/android/generated_peerconnection_jni/IceCandidateErrorEvent_jni.h"
+#include "sdk/android/generated_peerconnection_jni/PeerConnection_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
 #include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/src/jni/pc/add_ice_candidate_observer.h"
 #include "sdk/android/src/jni/pc/crypto_options.h"
 #include "sdk/android/src/jni/pc/data_channel.h"
 #include "sdk/android/src/jni/pc/ice_candidate.h"
@@ -109,16 +113,33 @@ SdpSemantics JavaToNativeSdpSemantics(JNIEnv* jni,
   std::string enum_name = GetJavaEnumName(jni, j_sdp_semantics);
 
   if (enum_name == "PLAN_B")
-    return SdpSemantics::kPlanB;
+    return SdpSemantics::kPlanB_DEPRECATED;
 
   if (enum_name == "UNIFIED_PLAN")
     return SdpSemantics::kUnifiedPlan;
 
-  RTC_NOTREACHED();
-  return SdpSemantics::kPlanB;
+  RTC_DCHECK_NOTREACHED();
+  return SdpSemantics::kUnifiedPlan;
+}
+
+ScopedJavaLocalRef<jobject> NativeToJavaCandidatePairChange(
+    JNIEnv* env,
+    const cricket::CandidatePairChangeEvent& event) {
+  const auto& selected_pair = event.selected_candidate_pair;
+  return Java_CandidatePairChangeEvent_Constructor(
+      env, NativeToJavaCandidate(env, selected_pair.local_candidate()),
+      NativeToJavaCandidate(env, selected_pair.remote_candidate()),
+      static_cast<int>(event.last_data_received_ms),
+      NativeToJavaString(env, event.reason),
+      static_cast<int>(event.estimated_disconnected_time_ms));
 }
 
 }  // namespace
+
+ScopedJavaLocalRef<jobject> NativeToJavaAdapterType(JNIEnv* env,
+                                                    int adapterType) {
+  return Java_AdapterType_fromNativeIndex(env, adapterType);
+}
 
 void JavaToNativeRTCConfiguration(
     JNIEnv* jni,
@@ -140,6 +161,8 @@ void JavaToNativeRTCConfiguration(
       Java_RTCConfiguration_getIceServers(jni, j_rtc_config);
   ScopedJavaLocalRef<jobject> j_continual_gathering_policy =
       Java_RTCConfiguration_getContinualGatheringPolicy(jni, j_rtc_config);
+  ScopedJavaLocalRef<jobject> j_turn_port_prune_policy =
+      Java_RTCConfiguration_getTurnPortPrunePolicy(jni, j_rtc_config);
   ScopedJavaLocalRef<jobject> j_turn_customizer =
       Java_RTCConfiguration_getTurnCustomizer(jni, j_rtc_config);
   ScopedJavaLocalRef<jobject> j_network_preference =
@@ -181,9 +204,14 @@ void JavaToNativeRTCConfiguration(
       Java_RTCConfiguration_getIceCandidatePoolSize(jni, j_rtc_config);
   rtc_config->prune_turn_ports =
       Java_RTCConfiguration_getPruneTurnPorts(jni, j_rtc_config);
+  rtc_config->turn_port_prune_policy =
+      JavaToNativePortPrunePolicy(jni, j_turn_port_prune_policy);
   rtc_config->presume_writable_when_fully_relayed =
       Java_RTCConfiguration_getPresumeWritableWhenFullyRelayed(jni,
                                                                j_rtc_config);
+  rtc_config->surface_ice_candidates_on_ice_transport_type_changed =
+      Java_RTCConfiguration_getSurfaceIceCandidatesOnIceTransportTypeChanged(
+          jni, j_rtc_config);
   ScopedJavaLocalRef<jobject> j_ice_check_interval_strong_connectivity =
       Java_RTCConfiguration_getIceCheckIntervalStrongConnectivity(jni,
                                                                   j_rtc_config);
@@ -211,48 +239,50 @@ void JavaToNativeRTCConfiguration(
                                                               j_rtc_config);
   rtc_config->stun_candidate_keepalive_interval =
       JavaToNativeOptionalInt(jni, j_stun_candidate_keepalive_interval);
+  ScopedJavaLocalRef<jobject> j_stable_writable_connection_ping_interval_ms =
+      Java_RTCConfiguration_getStableWritableConnectionPingIntervalMs(
+          jni, j_rtc_config);
+  rtc_config->stable_writable_connection_ping_interval_ms =
+      JavaToNativeOptionalInt(jni,
+                              j_stable_writable_connection_ping_interval_ms);
   rtc_config->disable_ipv6_on_wifi =
       Java_RTCConfiguration_getDisableIPv6OnWifi(jni, j_rtc_config);
   rtc_config->max_ipv6_networks =
       Java_RTCConfiguration_getMaxIPv6Networks(jni, j_rtc_config);
-  ScopedJavaLocalRef<jobject> j_ice_regather_interval_range =
-      Java_RTCConfiguration_getIceRegatherIntervalRange(jni, j_rtc_config);
-  if (!IsNull(jni, j_ice_regather_interval_range)) {
-    int min = Java_IntervalRange_getMin(jni, j_ice_regather_interval_range);
-    int max = Java_IntervalRange_getMax(jni, j_ice_regather_interval_range);
-    rtc_config->ice_regather_interval_range.emplace(min, max);
-  }
 
   rtc_config->turn_customizer = GetNativeTurnCustomizer(jni, j_turn_customizer);
 
-  rtc_config->disable_ipv6 =
-      Java_RTCConfiguration_getDisableIpv6(jni, j_rtc_config);
   rtc_config->media_config.enable_dscp =
       Java_RTCConfiguration_getEnableDscp(jni, j_rtc_config);
   rtc_config->media_config.video.enable_cpu_adaptation =
       Java_RTCConfiguration_getEnableCpuOveruseDetection(jni, j_rtc_config);
-  rtc_config->enable_rtp_data_channel =
-      Java_RTCConfiguration_getEnableRtpDataChannel(jni, j_rtc_config);
   rtc_config->media_config.video.suspend_below_min_bitrate =
       Java_RTCConfiguration_getSuspendBelowMinBitrate(jni, j_rtc_config);
   rtc_config->screencast_min_bitrate = JavaToNativeOptionalInt(
       jni, Java_RTCConfiguration_getScreencastMinBitrate(jni, j_rtc_config));
   rtc_config->combined_audio_video_bwe = JavaToNativeOptionalBool(
       jni, Java_RTCConfiguration_getCombinedAudioVideoBwe(jni, j_rtc_config));
-  rtc_config->enable_dtls_srtp = JavaToNativeOptionalBool(
-      jni, Java_RTCConfiguration_getEnableDtlsSrtp(jni, j_rtc_config));
   rtc_config->network_preference =
       JavaToNativeNetworkPreference(jni, j_network_preference);
   rtc_config->sdp_semantics = JavaToNativeSdpSemantics(jni, j_sdp_semantics);
   rtc_config->active_reset_srtp_params =
       Java_RTCConfiguration_getActiveResetSrtpParams(jni, j_rtc_config);
-  rtc_config->use_media_transport =
-      Java_RTCConfiguration_getUseMediaTransport(jni, j_rtc_config);
-  rtc_config->use_media_transport_for_data_channels =
-      Java_RTCConfiguration_getUseMediaTransportForDataChannels(jni,
-                                                                j_rtc_config);
   rtc_config->crypto_options =
       JavaToNativeOptionalCryptoOptions(jni, j_crypto_options);
+
+  rtc_config->allow_codec_switching = JavaToNativeOptionalBool(
+      jni, Java_RTCConfiguration_getAllowCodecSwitching(jni, j_rtc_config));
+
+  rtc_config->offer_extmap_allow_mixed =
+      Java_RTCConfiguration_getOfferExtmapAllowMixed(jni, j_rtc_config);
+  rtc_config->enable_implicit_rollback =
+      Java_RTCConfiguration_getEnableImplicitRollback(jni, j_rtc_config);
+
+  ScopedJavaLocalRef<jstring> j_turn_logging_id =
+      Java_RTCConfiguration_getTurnLoggingId(jni, j_rtc_config);
+  if (!IsNull(jni, j_turn_logging_id)) {
+    rtc_config->turn_logging_id = JavaToNativeString(jni, j_turn_logging_id);
+  }
 }
 
 rtc::KeyType GetRtcConfigKeyType(JNIEnv* env,
@@ -273,6 +303,19 @@ void PeerConnectionObserverJni::OnIceCandidate(
   JNIEnv* env = AttachCurrentThreadIfNeeded();
   Java_Observer_onIceCandidate(env, j_observer_global_,
                                NativeToJavaIceCandidate(env, *candidate));
+}
+
+void PeerConnectionObserverJni::OnIceCandidateError(
+    const std::string& address,
+    int port,
+    const std::string& url,
+    int error_code,
+    const std::string& error_text) {
+  JNIEnv* env = AttachCurrentThreadIfNeeded();
+  ScopedJavaLocalRef<jobject> event = Java_IceCandidateErrorEvent_Constructor(
+      env, NativeToJavaString(env, address), port, NativeToJavaString(env, url),
+      error_code, NativeToJavaString(env, error_text));
+  Java_Observer_onIceCandidateError(env, j_observer_global_, event);
 }
 
 void PeerConnectionObserverJni::OnIceCandidatesRemoved(
@@ -298,6 +341,14 @@ void PeerConnectionObserverJni::OnIceConnectionChange(
       Java_IceConnectionState_fromNativeIndex(env, new_state));
 }
 
+void PeerConnectionObserverJni::OnStandardizedIceConnectionChange(
+    PeerConnectionInterface::IceConnectionState new_state) {
+  JNIEnv* env = AttachCurrentThreadIfNeeded();
+  Java_Observer_onStandardizedIceConnectionChange(
+      env, j_observer_global_,
+      Java_IceConnectionState_fromNativeIndex(env, new_state));
+}
+
 void PeerConnectionObserverJni::OnConnectionChange(
     PeerConnectionInterface::PeerConnectionState new_state) {
   JNIEnv* env = AttachCurrentThreadIfNeeded();
@@ -310,6 +361,13 @@ void PeerConnectionObserverJni::OnIceConnectionReceivingChange(bool receiving) {
   JNIEnv* env = AttachCurrentThreadIfNeeded();
   Java_Observer_onIceConnectionReceivingChange(env, j_observer_global_,
                                                receiving);
+}
+
+void PeerConnectionObserverJni::OnIceSelectedCandidatePairChanged(
+    const cricket::CandidatePairChangeEvent& event) {
+  JNIEnv* env = AttachCurrentThreadIfNeeded();
+  Java_Observer_onSelectedCandidatePairChanged(
+      env, j_observer_global_, NativeToJavaCandidatePairChange(env, event));
 }
 
 void PeerConnectionObserverJni::OnIceGatheringChange(
@@ -331,8 +389,9 @@ void PeerConnectionObserverJni::OnAddStream(
 void PeerConnectionObserverJni::OnRemoveStream(
     rtc::scoped_refptr<MediaStreamInterface> stream) {
   JNIEnv* env = AttachCurrentThreadIfNeeded();
-  NativeToJavaStreamsMap::iterator it = remote_streams_.find(stream);
-  RTC_CHECK(it != remote_streams_.end()) << "unexpected stream: " << stream;
+  NativeToJavaStreamsMap::iterator it = remote_streams_.find(stream.get());
+  RTC_CHECK(it != remote_streams_.end())
+      << "unexpected stream: " << stream.get();
   Java_Observer_onRemoveStream(env, j_observer_global_,
                                it->second.j_media_stream());
   remote_streams_.erase(it);
@@ -362,6 +421,16 @@ void PeerConnectionObserverJni::OnAddTrack(
                            NativeToJavaMediaStreamArray(env, streams));
 }
 
+void PeerConnectionObserverJni::OnRemoveTrack(
+    rtc::scoped_refptr<RtpReceiverInterface> receiver) {
+  JNIEnv* env = AttachCurrentThreadIfNeeded();
+  ScopedJavaLocalRef<jobject> j_rtp_receiver =
+      NativeToJavaRtpReceiver(env, receiver);
+  rtp_receivers_.emplace_back(env, j_rtp_receiver);
+
+  Java_Observer_onRemoveTrack(env, j_observer_global_, j_rtp_receiver);
+}
+
 void PeerConnectionObserverJni::OnTrack(
     rtc::scoped_refptr<RtpTransceiverInterface> transceiver) {
   JNIEnv* env = AttachCurrentThreadIfNeeded();
@@ -377,7 +446,7 @@ void PeerConnectionObserverJni::OnTrack(
 JavaMediaStream& PeerConnectionObserverJni::GetOrCreateJavaStream(
     JNIEnv* env,
     const rtc::scoped_refptr<MediaStreamInterface>& stream) {
-  NativeToJavaStreamsMap::iterator it = remote_streams_.find(stream);
+  NativeToJavaStreamsMap::iterator it = remote_streams_.find(stream.get());
   if (it == remote_streams_.end()) {
     it = remote_streams_
              .emplace(std::piecewise_construct,
@@ -426,9 +495,7 @@ static jlong JNI_PeerConnection_CreatePeerConnectionObserver(
   return jlongFromPointer(new PeerConnectionObserverJni(jni, j_observer));
 }
 
-static void JNI_PeerConnection_FreeOwnedPeerConnection(
-    JNIEnv*,
-    jlong j_p) {
+static void JNI_PeerConnection_FreeOwnedPeerConnection(JNIEnv*, jlong j_p) {
   delete reinterpret_cast<OwnedPeerConnection*>(j_p);
 }
 
@@ -441,17 +508,39 @@ static jlong JNI_PeerConnection_GetNativePeerConnection(
 static ScopedJavaLocalRef<jobject> JNI_PeerConnection_GetLocalDescription(
     JNIEnv* jni,
     const JavaParamRef<jobject>& j_pc) {
-  const SessionDescriptionInterface* sdp =
-      ExtractNativePC(jni, j_pc)->local_description();
-  return sdp ? NativeToJavaSessionDescription(jni, sdp) : nullptr;
+  PeerConnectionInterface* pc = ExtractNativePC(jni, j_pc);
+  // It's only safe to operate on SessionDescriptionInterface on the
+  // signaling thread, but `jni` may only be used on the current thread, so we
+  // must do this odd dance.
+  std::string sdp;
+  std::string type;
+  pc->signaling_thread()->BlockingCall([pc, &sdp, &type] {
+    const SessionDescriptionInterface* desc = pc->local_description();
+    if (desc) {
+      RTC_CHECK(desc->ToString(&sdp)) << "got so far: " << sdp;
+      type = desc->type();
+    }
+  });
+  return sdp.empty() ? nullptr : NativeToJavaSessionDescription(jni, sdp, type);
 }
 
 static ScopedJavaLocalRef<jobject> JNI_PeerConnection_GetRemoteDescription(
     JNIEnv* jni,
     const JavaParamRef<jobject>& j_pc) {
-  const SessionDescriptionInterface* sdp =
-      ExtractNativePC(jni, j_pc)->remote_description();
-  return sdp ? NativeToJavaSessionDescription(jni, sdp) : nullptr;
+  PeerConnectionInterface* pc = ExtractNativePC(jni, j_pc);
+  // It's only safe to operate on SessionDescriptionInterface on the
+  // signaling thread, but `jni` may only be used on the current thread, so we
+  // must do this odd dance.
+  std::string sdp;
+  std::string type;
+  pc->signaling_thread()->BlockingCall([pc, &sdp, &type] {
+    const SessionDescriptionInterface* desc = pc->remote_description();
+    if (desc) {
+      RTC_CHECK(desc->ToString(&sdp)) << "got so far: " << sdp;
+      type = desc->type();
+    }
+  });
+  return sdp.empty() ? nullptr : NativeToJavaSessionDescription(jni, sdp, type);
 }
 
 static ScopedJavaLocalRef<jobject> JNI_PeerConnection_GetCertificate(
@@ -470,10 +559,12 @@ static ScopedJavaLocalRef<jobject> JNI_PeerConnection_CreateDataChannel(
     const JavaParamRef<jstring>& j_label,
     const JavaParamRef<jobject>& j_init) {
   DataChannelInit init = JavaToNativeDataChannelInit(jni, j_init);
-  rtc::scoped_refptr<DataChannelInterface> channel(
-      ExtractNativePC(jni, j_pc)->CreateDataChannel(
-          JavaToNativeString(jni, j_label), &init));
-  return WrapNativeDataChannel(jni, channel);
+  auto result = ExtractNativePC(jni, j_pc)->CreateDataChannelOrError(
+      JavaToNativeString(jni, j_label), &init);
+  if (!result.ok()) {
+    return WrapNativeDataChannel(jni, nullptr);
+  }
+  return WrapNativeDataChannel(jni, result.MoveValue());
 }
 
 static void JNI_PeerConnection_CreateOffer(
@@ -483,12 +574,11 @@ static void JNI_PeerConnection_CreateOffer(
     const JavaParamRef<jobject>& j_constraints) {
   std::unique_ptr<MediaConstraints> constraints =
       JavaToNativeMediaConstraints(jni, j_constraints);
-  rtc::scoped_refptr<CreateSdpObserverJni> observer(
-      new rtc::RefCountedObject<CreateSdpObserverJni>(jni, j_observer,
-                                                      std::move(constraints)));
+  auto observer = rtc::make_ref_counted<CreateSdpObserverJni>(
+      jni, j_observer, std::move(constraints));
   PeerConnectionInterface::RTCOfferAnswerOptions options;
   CopyConstraintsIntoOfferAnswerOptions(observer->constraints(), &options);
-  ExtractNativePC(jni, j_pc)->CreateOffer(observer, options);
+  ExtractNativePC(jni, j_pc)->CreateOffer(observer.get(), options);
 }
 
 static void JNI_PeerConnection_CreateAnswer(
@@ -498,12 +588,20 @@ static void JNI_PeerConnection_CreateAnswer(
     const JavaParamRef<jobject>& j_constraints) {
   std::unique_ptr<MediaConstraints> constraints =
       JavaToNativeMediaConstraints(jni, j_constraints);
-  rtc::scoped_refptr<CreateSdpObserverJni> observer(
-      new rtc::RefCountedObject<CreateSdpObserverJni>(jni, j_observer,
-                                                      std::move(constraints)));
+  auto observer = rtc::make_ref_counted<CreateSdpObserverJni>(
+      jni, j_observer, std::move(constraints));
   PeerConnectionInterface::RTCOfferAnswerOptions options;
   CopyConstraintsIntoOfferAnswerOptions(observer->constraints(), &options);
-  ExtractNativePC(jni, j_pc)->CreateAnswer(observer, options);
+  ExtractNativePC(jni, j_pc)->CreateAnswer(observer.get(), options);
+}
+
+static void JNI_PeerConnection_SetLocalDescriptionAutomatically(
+    JNIEnv* jni,
+    const JavaParamRef<jobject>& j_pc,
+    const JavaParamRef<jobject>& j_observer) {
+  auto observer =
+      rtc::make_ref_counted<SetLocalSdpObserverJni>(jni, j_observer);
+  ExtractNativePC(jni, j_pc)->SetLocalDescription(observer);
 }
 
 static void JNI_PeerConnection_SetLocalDescription(
@@ -511,10 +609,10 @@ static void JNI_PeerConnection_SetLocalDescription(
     const JavaParamRef<jobject>& j_pc,
     const JavaParamRef<jobject>& j_observer,
     const JavaParamRef<jobject>& j_sdp) {
-  rtc::scoped_refptr<SetSdpObserverJni> observer(
-      new rtc::RefCountedObject<SetSdpObserverJni>(jni, j_observer, nullptr));
+  auto observer =
+      rtc::make_ref_counted<SetLocalSdpObserverJni>(jni, j_observer);
   ExtractNativePC(jni, j_pc)->SetLocalDescription(
-      observer, JavaToNativeSessionDescription(jni, j_sdp).release());
+      JavaToNativeSessionDescription(jni, j_sdp), observer);
 }
 
 static void JNI_PeerConnection_SetRemoteDescription(
@@ -522,10 +620,15 @@ static void JNI_PeerConnection_SetRemoteDescription(
     const JavaParamRef<jobject>& j_pc,
     const JavaParamRef<jobject>& j_observer,
     const JavaParamRef<jobject>& j_sdp) {
-  rtc::scoped_refptr<SetSdpObserverJni> observer(
-      new rtc::RefCountedObject<SetSdpObserverJni>(jni, j_observer, nullptr));
+  auto observer =
+      rtc::make_ref_counted<SetRemoteSdpObserverJni>(jni, j_observer);
   ExtractNativePC(jni, j_pc)->SetRemoteDescription(
-      observer, JavaToNativeSessionDescription(jni, j_sdp).release());
+      JavaToNativeSessionDescription(jni, j_sdp), observer);
+}
+
+static void JNI_PeerConnection_RestartIce(JNIEnv* jni,
+                                          const JavaParamRef<jobject>& j_pc) {
+  ExtractNativePC(jni, j_pc)->RestartIce();
 }
 
 static void JNI_PeerConnection_SetAudioPlayout(
@@ -556,7 +659,7 @@ static jboolean JNI_PeerConnection_SetConfiguration(
   if (owned_pc->constraints()) {
     CopyConstraintsIntoRtcConfiguration(owned_pc->constraints(), &rtc_config);
   }
-  return owned_pc->pc()->SetConfiguration(rtc_config);
+  return owned_pc->pc()->SetConfiguration(rtc_config).ok();
 }
 
 static jboolean JNI_PeerConnection_AddIceCandidate(
@@ -570,6 +673,25 @@ static jboolean JNI_PeerConnection_AddIceCandidate(
   std::unique_ptr<IceCandidateInterface> candidate(
       CreateIceCandidate(sdp_mid, j_sdp_mline_index, sdp, nullptr));
   return ExtractNativePC(jni, j_pc)->AddIceCandidate(candidate.get());
+}
+
+static void JNI_PeerConnection_AddIceCandidateWithObserver(
+    JNIEnv* jni,
+    const JavaParamRef<jobject>& j_pc,
+    const JavaParamRef<jstring>& j_sdp_mid,
+    jint j_sdp_mline_index,
+    const JavaParamRef<jstring>& j_candidate_sdp,
+    const JavaParamRef<jobject>& j_observer) {
+  std::string sdp_mid = JavaToNativeString(jni, j_sdp_mid);
+  std::string sdp = JavaToNativeString(jni, j_candidate_sdp);
+  std::unique_ptr<IceCandidateInterface> candidate(
+      CreateIceCandidate(sdp_mid, j_sdp_mline_index, sdp, nullptr));
+
+  rtc::scoped_refptr<AddIceCandidateObserverJni> observer(
+      new AddIceCandidateObserverJni(jni, j_observer));
+  ExtractNativePC(jni, j_pc)->AddIceCandidate(
+      std::move(candidate),
+      [observer](RTCError error) { observer->OnComplete(error); });
 }
 
 static jboolean JNI_PeerConnection_RemoveIceCandidates(
@@ -638,7 +760,8 @@ static ScopedJavaLocalRef<jobject> JNI_PeerConnection_AddTrack(
     const JavaParamRef<jobject>& j_stream_labels) {
   RTCErrorOr<rtc::scoped_refptr<RtpSenderInterface>> result =
       ExtractNativePC(jni, j_pc)->AddTrack(
-          reinterpret_cast<MediaStreamTrackInterface*>(native_track),
+          rtc::scoped_refptr<MediaStreamTrackInterface>(
+              reinterpret_cast<MediaStreamTrackInterface*>(native_track)),
           JavaListToNativeVector<std::string, jstring>(jni, j_stream_labels,
                                                        &JavaToNativeString));
   if (!result.ok()) {
@@ -653,8 +776,10 @@ static jboolean JNI_PeerConnection_RemoveTrack(
     JNIEnv* jni,
     const JavaParamRef<jobject>& j_pc,
     jlong native_sender) {
-  return ExtractNativePC(jni, j_pc)->RemoveTrack(
-      reinterpret_cast<RtpSenderInterface*>(native_sender));
+  return ExtractNativePC(jni, j_pc)
+      ->RemoveTrackOrError(rtc::scoped_refptr<RtpSenderInterface>(
+          reinterpret_cast<RtpSenderInterface*>(native_sender)))
+      .ok();
 }
 
 static ScopedJavaLocalRef<jobject> JNI_PeerConnection_AddTransceiverWithTrack(
@@ -664,7 +789,8 @@ static ScopedJavaLocalRef<jobject> JNI_PeerConnection_AddTransceiverWithTrack(
     const JavaParamRef<jobject>& j_init) {
   RTCErrorOr<rtc::scoped_refptr<RtpTransceiverInterface>> result =
       ExtractNativePC(jni, j_pc)->AddTransceiver(
-          reinterpret_cast<MediaStreamTrackInterface*>(native_track),
+          rtc::scoped_refptr<MediaStreamTrackInterface>(
+              reinterpret_cast<MediaStreamTrackInterface*>(native_track)),
           JavaToNativeRtpTransceiverInit(jni, j_init));
   if (!result.ok()) {
     RTC_LOG(LS_ERROR) << "Failed to add transceiver: "
@@ -698,10 +824,10 @@ static jboolean JNI_PeerConnection_OldGetStats(
     const JavaParamRef<jobject>& j_pc,
     const JavaParamRef<jobject>& j_observer,
     jlong native_track) {
-  rtc::scoped_refptr<StatsObserverJni> observer(
-      new rtc::RefCountedObject<StatsObserverJni>(jni, j_observer));
+  auto observer = rtc::make_ref_counted<StatsObserverJni>(jni, j_observer);
   return ExtractNativePC(jni, j_pc)->GetStats(
-      observer, reinterpret_cast<MediaStreamTrackInterface*>(native_track),
+      observer.get(),
+      reinterpret_cast<MediaStreamTrackInterface*>(native_track),
       PeerConnectionInterface::kStatsOutputLevelStandard);
 }
 
@@ -709,10 +835,35 @@ static void JNI_PeerConnection_NewGetStats(
     JNIEnv* jni,
     const JavaParamRef<jobject>& j_pc,
     const JavaParamRef<jobject>& j_callback) {
-  rtc::scoped_refptr<RTCStatsCollectorCallbackWrapper> callback(
-      new rtc::RefCountedObject<RTCStatsCollectorCallbackWrapper>(jni,
-                                                                  j_callback));
-  ExtractNativePC(jni, j_pc)->GetStats(callback);
+  auto callback =
+      rtc::make_ref_counted<RTCStatsCollectorCallbackWrapper>(jni, j_callback);
+  ExtractNativePC(jni, j_pc)->GetStats(callback.get());
+}
+
+static void JNI_PeerConnection_NewGetStatsSender(
+    JNIEnv* jni,
+    const JavaParamRef<jobject>& j_pc,
+    jlong native_sender,
+    const JavaParamRef<jobject>& j_callback) {
+  auto callback =
+      rtc::make_ref_counted<RTCStatsCollectorCallbackWrapper>(jni, j_callback);
+  ExtractNativePC(jni, j_pc)->GetStats(
+      rtc::scoped_refptr<RtpSenderInterface>(
+          reinterpret_cast<RtpSenderInterface*>(native_sender)),
+      rtc::scoped_refptr<RTCStatsCollectorCallbackWrapper>(callback.get()));
+}
+
+static void JNI_PeerConnection_NewGetStatsReceiver(
+    JNIEnv* jni,
+    const JavaParamRef<jobject>& j_pc,
+    jlong native_receiver,
+    const JavaParamRef<jobject>& j_callback) {
+  auto callback =
+      rtc::make_ref_counted<RTCStatsCollectorCallbackWrapper>(jni, j_callback);
+  ExtractNativePC(jni, j_pc)->GetStats(
+      rtc::scoped_refptr<RtpReceiverInterface>(
+          reinterpret_cast<RtpReceiverInterface*>(native_receiver)),
+      rtc::scoped_refptr<RTCStatsCollectorCallbackWrapper>(callback.get()));
 }
 
 static jboolean JNI_PeerConnection_SetBitrate(
@@ -721,9 +872,9 @@ static jboolean JNI_PeerConnection_SetBitrate(
     const JavaParamRef<jobject>& j_min,
     const JavaParamRef<jobject>& j_current,
     const JavaParamRef<jobject>& j_max) {
-  PeerConnectionInterface::BitrateParameters params;
+  BitrateSettings params;
   params.min_bitrate_bps = JavaToNativeOptionalInt(jni, j_min);
-  params.current_bitrate_bps = JavaToNativeOptionalInt(jni, j_current);
+  params.start_bitrate_bps = JavaToNativeOptionalInt(jni, j_current);
   params.max_bitrate_bps = JavaToNativeOptionalInt(jni, j_max);
   return ExtractNativePC(jni, j_pc)->SetBitrate(params).ok();
 }
@@ -733,8 +884,17 @@ static jboolean JNI_PeerConnection_StartRtcEventLog(
     const JavaParamRef<jobject>& j_pc,
     int file_descriptor,
     int max_size_bytes) {
-  return ExtractNativePC(jni, j_pc)->StartRtcEventLog(file_descriptor,
-                                                      max_size_bytes);
+  // TODO(eladalon): It would be better to not allow negative values into PC.
+  const size_t max_size = (max_size_bytes < 0)
+                              ? RtcEventLog::kUnlimitedOutput
+                              : rtc::saturated_cast<size_t>(max_size_bytes);
+  FILE* f = fdopen(file_descriptor, "wb");
+  if (!f) {
+    close(file_descriptor);
+    return false;
+  }
+  return ExtractNativePC(jni, j_pc)->StartRtcEventLog(
+      std::make_unique<RtcEventLogOutputFile>(f, max_size));
 }
 
 static void JNI_PeerConnection_StopRtcEventLog(

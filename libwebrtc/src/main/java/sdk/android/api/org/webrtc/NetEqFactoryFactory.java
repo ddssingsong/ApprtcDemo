@@ -1,5 +1,5 @@
 /*
- *  Copyright 2018 The WebRTC project authors. All Rights Reserved.
+ *  Copyright 2019 The WebRTC project authors. All Rights Reserved.
  *
  *  Use of this source code is governed by a BSD-style license
  *  that can be found in the LICENSE file in the root of the source
@@ -11,12 +11,11 @@
 package org.webrtc;
 
 /**
- * Factory for creating webrtc::MediaTransportFactory instances.
+ * Implementations of this interface can create a native {@code webrtc::NetEqFactory}.
  */
-public interface MediaTransportFactoryFactory {
+public interface NetEqFactoryFactory {
   /**
-   * Dynamically allocates a webrtc::MediaTransportFactory instance and returns a pointer to it.
-   * The caller takes ownership of the object.
+   * Returns a pointer to a {@code webrtc::NetEqFactory}. The caller takes ownership.
    */
-  public long createNativeMediaTransportFactory();
+  long createNativeNetEqFactory();
 }

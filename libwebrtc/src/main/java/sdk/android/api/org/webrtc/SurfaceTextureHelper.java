@@ -17,10 +17,11 @@ import android.opengl.GLES20;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
-
-import org.webrtc.VideoFrame.TextureBuffer;
-
+import androidx.annotation.Nullable;
 import java.util.concurrent.Callable;
+import org.webrtc.EglBase.Context;
+import org.webrtc.TextureBufferImpl.RefCountMonitor;
+import org.webrtc.VideoFrame.TextureBuffer;
 
 /**
  * Helper class for using a SurfaceTexture to create WebRTC VideoFrames. In order to create WebRTC
@@ -30,9 +31,24 @@ import java.util.concurrent.Callable;
  * resources once the texture frame is released.
  */
 public class SurfaceTextureHelper {
+  /**
+   * Interface for monitoring texture buffers created from this SurfaceTexture. Since only one
+   * texture buffer can exist at a time, this can be used to monitor for stuck frames.
+   */
+  public interface FrameRefMonitor {
+    /** A new frame was created. New frames start with ref count of 1. */
+    void onNewBuffer(TextureBuffer textureBuffer);
+    /** Ref count of the frame was incremented by the calling thread. */
+    void onRetainBuffer(TextureBuffer textureBuffer);
+    /** Ref count of the frame was decremented by the calling thread. */
+    void onReleaseBuffer(TextureBuffer textureBuffer);
+    /** Frame was destroyed (ref count reached 0). */
+    void onDestroyBuffer(TextureBuffer textureBuffer);
+  }
+
   private static final String TAG = "SurfaceTextureHelper";
   /**
-   * Construct a new SurfaceTextureHelper sharing OpenGL resources with |sharedContext|. A dedicated
+   * Construct a new SurfaceTextureHelper sharing OpenGL resources with `sharedContext`. A dedicated
    * thread and handler is created for handling the SurfaceTexture. May return null if EGL fails to
    * initialize a pixel buffer surface and make it current. If alignTimestamps is true, the frame
    * timestamps will be aligned to rtc::TimeNanos(). If frame timestamps are aligned to
@@ -41,8 +57,8 @@ public class SurfaceTextureHelper {
    * closer to actual creation time.
    */
   public static SurfaceTextureHelper create(final String threadName,
-      final EglBase.Context sharedContext, boolean alignTimestamps,
-      final YuvConverter yuvConverter) {
+      final Context sharedContext, boolean alignTimestamps, final YuvConverter yuvConverter,
+      FrameRefMonitor frameRefMonitor) {
     final HandlerThread thread = new HandlerThread(threadName);
     thread.start();
     final Handler handler = new Handler(thread.getLooper());
@@ -50,13 +66,14 @@ public class SurfaceTextureHelper {
     // The onFrameAvailable() callback will be executed on the SurfaceTexture ctor thread. See:
     // http://grepcode.com/file/repository.grepcode.com/java/ext/com.google.android/android/5.1.1_r1/android/graphics/SurfaceTexture.java#195.
     // Therefore, in order to control the callback thread on API lvl < 21, the SurfaceTextureHelper
-    // is constructed on the |handler| thread.
+    // is constructed on the `handler` thread.
     return ThreadUtils.invokeAtFrontUninterruptibly(handler, new Callable<SurfaceTextureHelper>() {
-      
+      @Nullable
       @Override
       public SurfaceTextureHelper call() {
         try {
-          return new SurfaceTextureHelper(sharedContext, handler, alignTimestamps, yuvConverter);
+          return new SurfaceTextureHelper(
+              sharedContext, handler, alignTimestamps, yuvConverter, frameRefMonitor);
         } catch (RuntimeException e) {
           Logging.e(TAG, threadName + " create failure", e);
           return null;
@@ -68,32 +85,70 @@ public class SurfaceTextureHelper {
   /**
    * Same as above with alignTimestamps set to false and yuvConverter set to new YuvConverter.
    *
-   * @see #create(String, EglBase.Context, boolean, YuvConverter)
+   * @see #create(String, Context, boolean, YuvConverter, FrameRefMonitor)
    */
   public static SurfaceTextureHelper create(
-      final String threadName, final EglBase.Context sharedContext) {
-    return create(threadName, sharedContext, /* alignTimestamps= */ false, new YuvConverter());
+      final String threadName, final Context sharedContext) {
+    return create(threadName, sharedContext, /* alignTimestamps= */ false, new YuvConverter(),
+        /*frameRefMonitor=*/null);
   }
 
   /**
    * Same as above with yuvConverter set to new YuvConverter.
    *
-   * @see #create(String, EglBase.Context, boolean, YuvConverter)
+   * @see #create(String, Context, boolean, YuvConverter, FrameRefMonitor)
    */
   public static SurfaceTextureHelper create(
-      final String threadName, final EglBase.Context sharedContext, boolean alignTimestamps) {
-    return create(threadName, sharedContext, alignTimestamps, new YuvConverter());
+      final String threadName, final Context sharedContext, boolean alignTimestamps) {
+    return create(
+        threadName, sharedContext, alignTimestamps, new YuvConverter(), /*frameRefMonitor=*/null);
   }
+
+  /**
+   * Create a SurfaceTextureHelper without frame ref monitor.
+   *
+   * @see #create(String, Context, boolean, YuvConverter, FrameRefMonitor)
+   */
+  public static SurfaceTextureHelper create(final String threadName,
+      final Context sharedContext, boolean alignTimestamps, YuvConverter yuvConverter) {
+    return create(
+        threadName, sharedContext, alignTimestamps, yuvConverter, /*frameRefMonitor=*/null);
+  }
+
+  private final RefCountMonitor textureRefCountMonitor = new RefCountMonitor() {
+    @Override
+    public void onRetain(TextureBufferImpl textureBuffer) {
+      if (frameRefMonitor != null) {
+        frameRefMonitor.onRetainBuffer(textureBuffer);
+      }
+    }
+
+    @Override
+    public void onRelease(TextureBufferImpl textureBuffer) {
+      if (frameRefMonitor != null) {
+        frameRefMonitor.onReleaseBuffer(textureBuffer);
+      }
+    }
+
+    @Override
+    public void onDestroy(TextureBufferImpl textureBuffer) {
+      returnTextureFrame();
+      if (frameRefMonitor != null) {
+        frameRefMonitor.onDestroyBuffer(textureBuffer);
+      }
+    }
+  };
 
   private final Handler handler;
   private final EglBase eglBase;
   private final SurfaceTexture surfaceTexture;
   private final int oesTextureId;
   private final YuvConverter yuvConverter;
-   private final TimestampAligner timestampAligner;
+  @Nullable private final TimestampAligner timestampAligner;
+  private final FrameRefMonitor frameRefMonitor;
 
-  // These variables are only accessed from the |handler| thread.
-   private VideoSink listener;
+  // These variables are only accessed from the `handler` thread.
+  @Nullable private VideoSink listener;
   // The possible states of this class.
   private boolean hasPendingTexture;
   private volatile boolean isTextureInUse;
@@ -101,9 +156,9 @@ public class SurfaceTextureHelper {
   private int frameRotation;
   private int textureWidth;
   private int textureHeight;
-  // |pendingListener| is set in setListener() and the runnable is posted to the handler thread.
+  // `pendingListener` is set in setListener() and the runnable is posted to the handler thread.
   // setListener() is not allowed to be called again before stopListening(), so this is thread safe.
-   private VideoSink pendingListener;
+  @Nullable private VideoSink pendingListener;
   final Runnable setListenerRunnable = new Runnable() {
     @Override
     public void run() {
@@ -119,14 +174,15 @@ public class SurfaceTextureHelper {
     }
   };
 
-  private SurfaceTextureHelper(EglBase.Context sharedContext, Handler handler,
-      boolean alignTimestamps, YuvConverter yuvConverter) {
+  private SurfaceTextureHelper(Context sharedContext, Handler handler, boolean alignTimestamps,
+      YuvConverter yuvConverter, FrameRefMonitor frameRefMonitor) {
     if (handler.getLooper().getThread() != Thread.currentThread()) {
       throw new IllegalStateException("SurfaceTextureHelper must be created on the handler thread");
     }
     this.handler = handler;
     this.timestampAligner = alignTimestamps ? new TimestampAligner() : null;
     this.yuvConverter = yuvConverter;
+    this.frameRefMonitor = frameRefMonitor;
 
     eglBase = EglBase.create(sharedContext, EglBase.CONFIG_PIXEL_BUFFER);
     try {
@@ -142,28 +198,18 @@ public class SurfaceTextureHelper {
 
     oesTextureId = GlUtil.generateTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES);
     surfaceTexture = new SurfaceTexture(oesTextureId);
-    setOnFrameAvailableListener(surfaceTexture, (SurfaceTexture st) -> {
+    surfaceTexture.setOnFrameAvailableListener(st -> {
+      if (hasPendingTexture) {
+        Logging.d(TAG, "A frame is already pending, dropping frame.");
+      }
+
       hasPendingTexture = true;
       tryDeliverTextureFrame();
     }, handler);
   }
 
-  @TargetApi(21)
-  private static void setOnFrameAvailableListener(SurfaceTexture surfaceTexture,
-      SurfaceTexture.OnFrameAvailableListener listener, Handler handler) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-      surfaceTexture.setOnFrameAvailableListener(listener, handler);
-    } else {
-      // The documentation states that the listener will be called on an arbitrary thread, but in
-      // pratice, it is always the thread on which the SurfaceTexture was constructed. There are
-      // assertions in place in case this ever changes. For API >= 21, we use the new API to
-      // explicitly specify the handler.
-      surfaceTexture.setOnFrameAvailableListener(listener);
-    }
-  }
-
   /**
-   * Start to stream textures to the given |listener|. If you need to change listener, you need to
+   * Start to stream textures to the given `listener`. If you need to change listener, you need to
    * call stopListening() first.
    */
   public void startListening(final VideoSink listener) {
@@ -203,6 +249,17 @@ public class SurfaceTextureHelper {
     handler.post(() -> {
       this.textureWidth = textureWidth;
       this.textureHeight = textureHeight;
+      tryDeliverTextureFrame();
+    });
+  }
+
+  /**
+   * Forces a frame to be produced. If no new frame is available, the last frame is sent to the
+   * listener again.
+   */
+  public void forceFrame() {
+    handler.post(() -> {
+      hasPendingTexture = true;
       tryDeliverTextureFrame();
     });
   }
@@ -260,7 +317,7 @@ public class SurfaceTextureHelper {
   }
 
   /**
-   * Posts to the correct thread to convert |textureBuffer| to I420.
+   * Posts to the correct thread to convert `textureBuffer` to I420.
    *
    * @deprecated Use toI420() instead.
    */
@@ -302,12 +359,15 @@ public class SurfaceTextureHelper {
     if (timestampAligner != null) {
       timestampNs = timestampAligner.translateTimestamp(timestampNs);
     }
-    final VideoFrame.Buffer buffer =
+    final TextureBuffer buffer =
         new TextureBufferImpl(textureWidth, textureHeight, TextureBuffer.Type.OES, oesTextureId,
             RendererCommon.convertMatrixToAndroidGraphicsMatrix(transformMatrix), handler,
-            yuvConverter, this ::returnTextureFrame);
+            yuvConverter, textureRefCountMonitor);
+    if (frameRefMonitor != null) {
+      frameRefMonitor.onNewBuffer(buffer);
+    }
     final VideoFrame frame = new VideoFrame(buffer, frameRotation, timestampNs);
-    ((VideoSink) listener).onFrame(frame);
+    listener.onFrame(frame);
     frame.release();
   }
 

@@ -24,8 +24,8 @@ import android.media.AudioManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Process;
-;
 import android.util.Log;
+import androidx.annotation.Nullable;
 import java.util.List;
 import java.util.Set;
 import org.appspot.apprtc.util.AppRTCUtils;
@@ -65,18 +65,18 @@ public class AppRTCBluetoothManager {
 
   private final Context apprtcContext;
   private final AppRTCAudioManager apprtcAudioManager;
-
+  @Nullable
   private final AudioManager audioManager;
   private final Handler handler;
 
   int scoConnectionAttempts;
   private State bluetoothState;
   private final BluetoothProfile.ServiceListener bluetoothServiceListener;
-
+  @Nullable
   private BluetoothAdapter bluetoothAdapter;
-
+  @Nullable
   private BluetoothHeadset bluetoothHeadset;
-
+  @Nullable
   private BluetoothDevice bluetoothDevice;
   private final BroadcastReceiver bluetoothHeadsetReceiver;
 
@@ -364,7 +364,7 @@ public class AppRTCBluetoothManager {
    * Use the BluetoothHeadset proxy object (controls the Bluetooth Headset
    * Service via IPC) to update the list of connected devices for the HEADSET
    * profile. The internal state will change to HEADSET_UNAVAILABLE or to
-   * HEADSET_AVAILABLE and |bluetoothDevice| will be mapped to the connected
+   * HEADSET_AVAILABLE and `bluetoothDevice` will be mapped to the connected
    * device if available.
    */
   public void updateDevice() {
@@ -395,7 +395,7 @@ public class AppRTCBluetoothManager {
   /**
    * Stubs for test mocks.
    */
-
+  @Nullable
   protected AudioManager getAudioManager(Context context) {
     return (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
   }
@@ -419,7 +419,7 @@ public class AppRTCBluetoothManager {
   }
 
   /** Logs the state of the local Bluetooth adapter. */
-  @SuppressLint("HardwareIds")
+  @SuppressLint({"HardwareIds", "MissingPermission"})
   protected void logBluetoothAdapterInfo(BluetoothAdapter localAdapter) {
     Log.d(TAG, "BluetoothAdapter: "
             + "enabled=" + localAdapter.isEnabled() + ", "

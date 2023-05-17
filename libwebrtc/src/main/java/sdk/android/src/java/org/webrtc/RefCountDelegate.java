@@ -10,6 +10,7 @@
 
 package org.webrtc;
 
+import androidx.annotation.Nullable;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -17,12 +18,12 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 class RefCountDelegate implements RefCounted {
   private final AtomicInteger refCount = new AtomicInteger(1);
-  private final  Runnable releaseCallback;
+  private final @Nullable Runnable releaseCallback;
 
   /**
    * @param releaseCallback Callback that will be executed once the ref count reaches zero.
    */
-  public RefCountDelegate( Runnable releaseCallback) {
+  public RefCountDelegate(@Nullable Runnable releaseCallback) {
     this.releaseCallback = releaseCallback;
   }
 
@@ -43,5 +44,20 @@ class RefCountDelegate implements RefCounted {
     if (updated_count == 0 && releaseCallback != null) {
       releaseCallback.run();
     }
+  }
+
+  /**
+   * Tries to retain the object. Can be used in scenarios where it is unknown if the object has
+   * already been released. Returns true if successful or false if the object was already released.
+   */
+  boolean safeRetain() {
+    int currentRefCount = refCount.get();
+    while (currentRefCount != 0) {
+      if (refCount.weakCompareAndSet(currentRefCount, currentRefCount + 1)) {
+        return true;
+      }
+      currentRefCount = refCount.get();
+    }
+    return false;
   }
 }

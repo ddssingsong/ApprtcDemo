@@ -10,6 +10,10 @@
 
 package org.webrtc;
 
+import androidx.annotation.Nullable;
+import org.webrtc.VideoFrame;
+import org.webrtc.VideoProcessor;
+
 /**
  * This class is meant to be a simple layer that only handles the JNI wrapping of a C++
  * AndroidVideoTrackSource, that can easily be mocked out in Java unit tests. Refrain from adding
@@ -40,7 +44,7 @@ class NativeAndroidVideoTrackSource {
    * frame should be dropped, otherwise the frame should be adapted in accordance to the frame
    * adaptation parameters before calling onFrameCaptured().
    */
-  
+  @Nullable
   public VideoProcessor.FrameAdaptationParameters adaptFrame(VideoFrame frame) {
     return nativeAdaptFrame(nativeAndroidVideoTrackSource, frame.getBuffer().getWidth(),
         frame.getBuffer().getHeight(), frame.getRotation(), frame.getTimestampNs());
@@ -61,11 +65,15 @@ class NativeAndroidVideoTrackSource {
    * the requested fps.
    */
   public void adaptOutputFormat(VideoSource.AspectRatio targetLandscapeAspectRatio,
-       Integer maxLandscapePixelCount, VideoSource.AspectRatio targetPortraitAspectRatio,
-       Integer maxPortraitPixelCount,  Integer maxFps) {
+      @Nullable Integer maxLandscapePixelCount, VideoSource.AspectRatio targetPortraitAspectRatio,
+      @Nullable Integer maxPortraitPixelCount, @Nullable Integer maxFps) {
     nativeAdaptOutputFormat(nativeAndroidVideoTrackSource, targetLandscapeAspectRatio.width,
         targetLandscapeAspectRatio.height, maxLandscapePixelCount, targetPortraitAspectRatio.width,
         targetPortraitAspectRatio.height, maxPortraitPixelCount, maxFps);
+  }
+
+  public void setIsScreencast(boolean isScreencast) {
+    nativeSetIsScreencast(nativeAndroidVideoTrackSource, isScreencast);
   }
 
   @CalledByNative
@@ -76,12 +84,14 @@ class NativeAndroidVideoTrackSource {
         cropX, cropY, cropWidth, cropHeight, scaleWidth, scaleHeight, timestampNs, drop);
   }
 
+  private static native void nativeSetIsScreencast(
+      long nativeAndroidVideoTrackSource, boolean isScreencast);
   private static native void nativeSetState(long nativeAndroidVideoTrackSource, boolean isLive);
   private static native void nativeAdaptOutputFormat(long nativeAndroidVideoTrackSource,
-      int landscapeWidth, int landscapeHeight,  Integer maxLandscapePixelCount,
-      int portraitWidth, int portraitHeight,  Integer maxPortraitPixelCount,
-       Integer maxFps);
-  
+      int landscapeWidth, int landscapeHeight, @Nullable Integer maxLandscapePixelCount,
+      int portraitWidth, int portraitHeight, @Nullable Integer maxPortraitPixelCount,
+      @Nullable Integer maxFps);
+  @Nullable
   private static native VideoProcessor.FrameAdaptationParameters nativeAdaptFrame(
       long nativeAndroidVideoTrackSource, int width, int height, int rotation, long timestampNs);
   private static native void nativeOnFrameCaptured(
